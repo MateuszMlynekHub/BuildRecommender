@@ -47,8 +47,13 @@ EXPOSE 80
 
 # Simple healthcheck — fetching / should always return 200 because of the SPA
 # fallback, even when /api is down.
+#
+# Explicit 127.0.0.1 instead of `localhost`: busybox wget on alpine resolves
+# `localhost` to IPv6 ::1 first, but nginx.conf only has `listen 80;` (IPv4),
+# so the probe was getting "connection refused" on ::1 and never falling
+# back to 127.0.0.1. Hardcoding IPv4 sidesteps the resolver entirely.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1
+    CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
 
 # nginx:alpine's default CMD is already ["nginx", "-g", "daemon off;"] so we
 # don't override it.
