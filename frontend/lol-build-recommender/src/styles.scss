@@ -1,0 +1,270 @@
+@use "tailwindcss";
+
+// ============================================================
+// League of Legends brand palette — calibrated against official
+// branding guidelines + Universe / Client UI tints.
+// ============================================================
+:root {
+  // Dark backgrounds
+  --lol-void:       #010A13;  // deepest — page background
+  --lol-abyss:      #091428;  // elevated surfaces, cards
+  --lol-deep:       #0A1428;  // gradient stops
+  --lol-navy:       #0A323C;  // card borders
+  --lol-navy-light: #0F3460;  // accent borders
+
+  // Gold accents (primary brand)
+  --lol-gold-1:     #F0E6D2;  // lightest — body text on dark
+  --lol-gold-2:     #C8AA6E;  // soft gold
+  --lol-gold-3:     #C89B3C;  // primary gold
+  --lol-gold-4:     #785A28;  // dark gold — borders
+  --lol-gold-5:     #463714;  // deepest gold
+
+  // Accent colors
+  --lol-cyan:       #0AC8B9;  // neon cyan — highlights, CTAs
+  --lol-cyan-2:     #0397AB;
+  --lol-blue:       #005A82;
+  --lol-red:        #E84057;  // danger, red team
+  --lol-red-2:      #C8373C;
+  --lol-blue-team:  #4A90E2;  // blue team color
+
+  // Text
+  --lol-text:       #F0E6D2;
+  --lol-text-muted: #A09B8C;
+  --lol-text-dim:   #5B5A56;
+
+  // Legacy aliases for existing components (kept for backward-compat in inline styles)
+  --lol-gold:       #C89B3C;
+  --lol-dark:       #010A13;
+  --lol-dark-2:     #091428;
+  --lol-dark-3:     #0A1428;
+}
+
+// ============================================================
+// Typography — Beaufort-style serif for headings (Cinzel from
+// Google Fonts is the closest free substitute), Spiegel-like
+// humanist sans for body (Inter).
+// ============================================================
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+  margin: 0;
+  background: var(--lol-void);
+  color: var(--lol-text);
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-feature-settings: 'ss01', 'ss02';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: 'Cinzel', 'Times New Roman', serif;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+// ============================================================
+// Background — animated radial vignette + subtle noise
+// ============================================================
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(10, 200, 185, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 100% 100%, rgba(200, 155, 60, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 100% 100% at 0% 100%, rgba(15, 52, 96, 0.12) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+// ============================================================
+// Utility classes
+// ============================================================
+.glass-card {
+  background: linear-gradient(135deg,
+    rgba(9, 20, 40, 0.85) 0%,
+    rgba(10, 20, 40, 0.75) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--lol-gold-4);
+  box-shadow:
+    0 1px 0 rgba(240, 230, 210, 0.05) inset,
+    0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.gold-border {
+  border: 1px solid var(--lol-gold-4);
+}
+.gold-border-bright {
+  border: 1px solid var(--lol-gold-3);
+}
+
+.text-gold      { color: var(--lol-gold-3); }
+.text-gold-soft { color: var(--lol-gold-2); }
+.text-gold-lite { color: var(--lol-gold-1); }
+.text-cyan      { color: var(--lol-cyan); }
+.text-muted     { color: var(--lol-text-muted); }
+
+.bg-void    { background-color: var(--lol-void); }
+.bg-abyss   { background-color: var(--lol-abyss); }
+.bg-deep    { background-color: var(--lol-deep); }
+
+// Button: primary gold — Riot client style
+.btn-gold {
+  position: relative;
+  padding: 0.75rem 2rem;
+  background: linear-gradient(180deg, var(--lol-gold-3) 0%, var(--lol-gold-4) 100%);
+  border: 1px solid var(--lol-gold-2);
+  color: var(--lol-void);
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow:
+    0 1px 0 rgba(240, 230, 210, 0.3) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+    0 4px 16px rgba(200, 155, 60, 0.3);
+}
+.btn-gold:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--lol-gold-2) 0%, var(--lol-gold-3) 100%);
+  box-shadow:
+    0 1px 0 rgba(240, 230, 210, 0.4) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+    0 6px 24px rgba(200, 155, 60, 0.5);
+  transform: translateY(-1px);
+}
+.btn-gold:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+// Button: secondary outline
+.btn-outline {
+  padding: 0.6rem 1.5rem;
+  background: transparent;
+  border: 1px solid var(--lol-gold-4);
+  color: var(--lol-gold-2);
+  font-family: 'Cinzel', serif;
+  font-weight: 500;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-outline:hover {
+  border-color: var(--lol-gold-3);
+  color: var(--lol-gold-1);
+  background: rgba(200, 155, 60, 0.08);
+}
+
+// Form inputs — LoL client style
+.lol-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(1, 10, 19, 0.8);
+  border: 1px solid var(--lol-gold-4);
+  color: var(--lol-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  outline: none;
+}
+.lol-input:focus {
+  border-color: var(--lol-gold-3);
+  box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.2);
+}
+.lol-input::placeholder {
+  color: var(--lol-text-dim);
+}
+
+// Ornamental divider — gold line with diamond center
+.gold-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.gold-divider::before,
+.gold-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--lol-gold-4), transparent);
+}
+
+// Champion / item image — subtle gold ring + hover glow
+.lol-portrait {
+  position: relative;
+  border-radius: 4px;
+  border: 1px solid var(--lol-gold-4);
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+.lol-portrait:hover {
+  border-color: var(--lol-gold-3);
+  box-shadow: 0 0 20px rgba(200, 155, 60, 0.4);
+  transform: translateY(-2px);
+}
+.lol-portrait.selected {
+  border-color: var(--lol-gold-3);
+  box-shadow:
+    0 0 0 2px var(--lol-gold-3),
+    0 0 24px rgba(200, 155, 60, 0.6);
+}
+
+// Pulsing cyan for "live" indicators
+@keyframes pulse-cyan {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(10, 200, 185, 0.7); }
+  50%      { box-shadow: 0 0 0 8px rgba(10, 200, 185, 0); }
+}
+.pulse-live {
+  animation: pulse-cyan 2s ease-in-out infinite;
+}
+
+// Shimmer loading
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg,
+    var(--lol-abyss) 0%,
+    var(--lol-navy) 50%,
+    var(--lol-abyss) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+// Fade-in for newly loaded content
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: fade-in-up 0.4s ease-out both;
+}
+
+// Scrollbar theme
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--lol-void);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--lol-gold-4);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--lol-gold-3);
+}
+
+// Make sure #app content sits above the ::before gradient
+app-root {
+  position: relative;
+  z-index: 1;
+}

@@ -1,0 +1,20 @@
+{
+  "name": "DraftSense — League of Legends build recommender",
+  "short_name": "DraftSense",
+  "description": "Real-time counter builds for League of Legends. Enemy team analysis and item recommendations tailored to your active game.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#010A13",
+  "theme_color": "#010A13",
+  "lang": "en",
+  "categories": ["games", "utilities"],
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

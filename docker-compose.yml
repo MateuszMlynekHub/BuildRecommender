@@ -1,0 +1,122 @@
+# Production orchestration for DraftSense.
+#
+# Three services:
+#   backend   — .NET 9 API (Kestrel on 8080, internal only)
+#   frontend  — Angular SPA served by nginx, also reverse-proxies /api/ → backend
+#   caddy     — edge TLS terminator with automatic Let's Encrypt certs
+#
+# Traffic flow:
+#   client ──https──▶ caddy (80/443) ──http──▶ frontend ──http──▶ backend
+#                                           └─/api/* passed through───┘
+#
+# All service-to-service traffic happens on the `internal` bridge network. Only
+# Caddy publishes ports to the host — backend and frontend are NOT reachable
+# from outside the VPS.
+#
+# Required env vars (see .env.example):
+#   RIOT_API_KEY        — production Riot API key, never commit
+#   PUBLIC_DOMAIN       — public hostname, e.g. draftsense.net
+#   ACME_EMAIL          — email for Let's Encrypt account notifications
+#
+# Start:   docker compose up -d --build
+# Logs:    docker compose logs -f backend
+# Update:  git pull && docker compose up -d --build
+# Stop:    docker compose down
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: lolbuild-api:latest
+    container_name: lolbuild-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # Double-underscore = nested config section in .NET. These override the
+      # values in appsettings.Production.json.
+      RiotApi__ApiKey: ${RIOT_API_KEY}
+      Cors__AllowedOrigins__0: https://${PUBLIC_DOMAIN}
+      Cors__AllowedOrigins__1: https://www.${PUBLIC_DOMAIN}
+      # Pin SQLite DB to the mounted volume so data survives container rebuilds.
+      BuildStats__DatabasePath: /app/data/build-stats.db
+    volumes:
+      - backend_data:/app/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    # Resource limits tuned for a small VPS (2 vCPU / 4 GB RAM). Adjust upward
+    # if the BuildStats crawler starts getting OOM-killed under load.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1024M
+        reservations:
+          memory: 256M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: lolbuild-web:latest
+    container_name: lolbuild-web
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: lolbuild-caddy
+    restart: unless-stopped
+    ports:
+      # 80 is needed for the Let's Encrypt HTTP-01 challenge on every renewal,
+      # even if you only plan to serve HTTPS — don't firewall it off on the VPS.
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3 (QUIC)
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data         # Issued certs — DO NOT delete this volume
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  backend_data:
+    # SQLite build-stats database. Survives `docker compose down`; only removed
+    # with an explicit `docker volume rm lol-build-recommender_backend_data`.
+  caddy_data:
+    # Let's Encrypt account + issued certificates. NEVER delete — renewal uses
+    # cached state to stay inside Let's Encrypt's 50-certs/week rate limit.
+  caddy_config:

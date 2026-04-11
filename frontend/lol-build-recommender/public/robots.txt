@@ -1,0 +1,12 @@
+# robots.txt for DraftSense
+# ---------------------------
+# Allows all crawlers to index the public pages. The /api path is blocked
+# because it's a JSON API (not a human-facing page) and has no SEO value —
+# crawling it only wastes the Riot rate-limit budget.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Sitemap — update the hostname if you deploy under a different domain.
+Sitemap: https://draftsense.net/sitemap.xml

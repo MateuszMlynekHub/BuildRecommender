@@ -1,0 +1,28 @@
+# Build artifacts — rebuilt fresh inside the container
+**/bin/
+**/obj/
+
+# IDE / OS noise
+**/.vs/
+**/.idea/
+**/.vscode/
+**/*.user
+**/*.suo
+.DS_Store
+Thumbs.db
+
+# Local dev config — NEVER shipped to the container
+**/appsettings.Development.json
+**/appsettings.Local.json
+.env
+.env.*
+!.env.example
+
+# Local SQLite DB — mounted via volume, shouldn't be baked into the image
+**/data/
+**/*.db
+**/*.db-journal
+
+# Docs
+*.md
+LICENSE

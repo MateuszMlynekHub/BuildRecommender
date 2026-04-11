@@ -1,0 +1,63 @@
+# Caddyfile — edge reverse proxy with automatic Let's Encrypt.
+#
+# How this works:
+#   • Caddy watches {$PUBLIC_DOMAIN} (injected from docker-compose env vars)
+#   • On first request to the domain, Caddy completes an ACME HTTP-01 challenge
+#     and receives a Let's Encrypt certificate (stored in the caddy_data volume)
+#   • All subsequent traffic is TLS-terminated here, then proxied internally to
+#     the `frontend` nginx container over plain HTTP on the docker bridge.
+#
+# Prerequisites on the VPS:
+#   1. PUBLIC_DOMAIN must have A/AAAA records pointing to the VPS public IP
+#   2. Ports 80 and 443 must be open in the firewall (ufw allow 80,443/tcp)
+#   3. The ACME_EMAIL env var must be a real inbox — Let's Encrypt sends
+#      expiry warnings there if auto-renewal ever fails.
+
+{
+    # Global options
+    email {$ACME_EMAIL}
+    # Auto-redirect all http://...→ https://... (Caddy default, kept explicit).
+    auto_https disable_redirects  # managed manually in the http:// block below
+}
+
+# Apex + www both serve the same site. If you add more subdomains (api., staging.)
+# just list them here separated by commas.
+{$PUBLIC_DOMAIN}, www.{$PUBLIC_DOMAIN} {
+    # Zstandard + gzip encode (Caddy picks the best one per client Accept-Encoding).
+    encode zstd gzip
+
+    # Security headers — Strict-Transport-Security ONLY goes on the HTTPS vhost,
+    # never HTTP, otherwise browsers that see it over HTTP will ignore it or warn.
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "SAMEORIGIN"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Permissions-Policy        "geolocation=(), microphone=(), camera=()"
+        # Remove server fingerprinting — don't advertise "Caddy" + version.
+        -Server
+    }
+
+    # Reverse proxy to the frontend nginx container. Docker's internal DNS
+    # resolves `frontend` to its bridge-network IP.
+    reverse_proxy frontend:80 {
+        # Forward the real client info so the .NET app can log it.
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Access log — JSON format goes to stdout which docker-compose logs captures.
+    log {
+        output stdout
+        format json
+        level INFO
+    }
+}
+
+# HTTP → HTTPS redirect. Caddy normally handles this automatically but we
+# disabled auto_https redirects globally so we can control the behavior: also
+# serve the /.well-known/acme-challenge/ path for renewal HTTP-01 challenges.
+http://{$PUBLIC_DOMAIN}, http://www.{$PUBLIC_DOMAIN} {
+    redir https://{host}{uri} permanent
+}

@@ -1,0 +1,24 @@
+# Smoke-test override for local Docker validation.
+#
+# Usage (from repo root):
+#   docker compose --env-file .env.smoke \
+#     -f docker-compose.yml -f docker-compose.smoke.yml \
+#     up -d backend frontend
+#
+# Why this override exists:
+#   • The production compose file has a Caddy service that requests real Let's
+#     Encrypt certs over HTTP-01 challenge. That needs a public domain, not
+#     "localhost" — so smoke tests explicitly only start `backend` and
+#     `frontend` (Caddy is defined in the base file but never instantiated).
+#   • The frontend container in production has no host port mapping (Caddy
+#     talks to it over the internal bridge network). For smoke tests we add
+#     an 8081:80 mapping so a local curl can hit it.
+#   • Backend still listens only on the internal network — smoke tests reach
+#     it through the frontend nginx /api/ proxy, just like production traffic.
+
+services:
+  frontend:
+    # Host port 8081 instead of 80/443 — avoids conflicts with any IIS / other
+    # process on the Windows dev box that might already own 80.
+    ports:
+      - "8081:80"
