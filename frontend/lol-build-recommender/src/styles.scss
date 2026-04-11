@@ -224,18 +224,36 @@ body::before {
   animation: pulse-cyan 2s ease-in-out infinite;
 }
 
-// Shimmer loading
+// Shimmer loading.
+// ---
+// Implementation note: the older version animated `background-position`,
+// which isn't a compositor-friendly property — Chrome had to repaint every
+// frame (Lighthouse flagged "non-composited animation"). This rewrite uses
+// `transform: translateX` on a pseudo-element instead, which runs entirely
+// on the compositor thread (GPU-accelerated, no repaint). Same visual, zero
+// main-thread cost.
 @keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 .shimmer {
-  background: linear-gradient(90deg,
-    var(--lol-abyss) 0%,
-    var(--lol-navy) 50%,
-    var(--lol-abyss) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  position: relative;
+  background: var(--lol-abyss);
+  overflow: hidden;
+  // The moving highlight itself — absolutely positioned overlay that slides
+  // across the track. `will-change: transform` hints the browser to promote
+  // this layer to its own compositor layer ahead of time.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--lol-navy) 50%,
+      transparent 100%);
+    animation: shimmer 1.5s infinite;
+    will-change: transform;
+  }
 }
 
 // Fade-in for newly loaded content

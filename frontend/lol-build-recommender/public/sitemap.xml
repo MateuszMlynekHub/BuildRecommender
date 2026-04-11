@@ -1,21 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  DraftSense sitemap. Listed routes are the static, crawlable entry points —
-  the /game path is dynamic (requires a summoner lookup) so it's excluded from
-  indexing; there's no meaningful content for Google to cache for that URL.
+  DraftSense sitemap.
+  ====================
+  Listed routes are the static, crawlable entry points — /game is excluded
+  because it's dynamic (requires a Riot ID lookup + active game state) and
+  has no meaningful content for Google to cache.
 
-  xhtml:link hreflang lets Google associate the Polish-primary site with an
-  English alternate. Both point at the same URL because the UI is bilingual
-  and language falls out of browser prefs, not URL structure.
+  xhtml:link hreflang tells Google the site is available in 6 languages.
+  All alternates currently point at the same URL because the UI uses a
+  runtime language switcher (signal-based), not per-locale URL prefixes.
+  When we migrate to /en/, /pl/, /de/ etc., update both href values AND
+  add a separate <url> block per locale.
+
+  x-default is the fallback Google serves when the user's browser
+  preference doesn't match any listed hreflang — it should point to the
+  primary/international version, which for DraftSense is English.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
   <url>
     <loc>https://draftsense.net/</loc>
-    <xhtml:link rel="alternate" hreflang="pl" href="https://draftsense.net/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://draftsense.net/"/>
+    <xhtml:link rel="alternate" hreflang="en"        href="https://draftsense.net/"/>
+    <xhtml:link rel="alternate" hreflang="pl"        href="https://draftsense.net/"/>
+    <xhtml:link rel="alternate" hreflang="de"        href="https://draftsense.net/"/>
+    <xhtml:link rel="alternate" hreflang="es"        href="https://draftsense.net/"/>
+    <xhtml:link rel="alternate" hreflang="ru"        href="https://draftsense.net/"/>
+    <xhtml:link rel="alternate" hreflang="uk"        href="https://draftsense.net/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://draftsense.net/"/>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+
+  <url>
+    <loc>https://draftsense.net/shuffle</loc>
+    <xhtml:link rel="alternate" hreflang="en"        href="https://draftsense.net/shuffle"/>
+    <xhtml:link rel="alternate" hreflang="pl"        href="https://draftsense.net/shuffle"/>
+    <xhtml:link rel="alternate" hreflang="de"        href="https://draftsense.net/shuffle"/>
+    <xhtml:link rel="alternate" hreflang="es"        href="https://draftsense.net/shuffle"/>
+    <xhtml:link rel="alternate" hreflang="ru"        href="https://draftsense.net/shuffle"/>
+    <xhtml:link rel="alternate" hreflang="uk"        href="https://draftsense.net/shuffle"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://draftsense.net/shuffle"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
 </urlset>

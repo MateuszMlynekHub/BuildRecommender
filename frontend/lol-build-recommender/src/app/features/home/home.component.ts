@@ -1,5 +1,5 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, PLATFORM_ID, inject, signal, OnInit } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
@@ -79,10 +79,12 @@ import { TranslationKey } from '../../core/i18n/translations';
           </div>
 
           <div class="mb-8">
-            <label class="block text-xs font-display uppercase tracking-widest mb-2 text-gold-soft">{{ 'home.form.region' | t }}</label>
+            <label for="ds-region-select" class="block text-xs font-display uppercase tracking-widest mb-2 text-gold-soft">{{ 'home.form.region' | t }}</label>
             <div class="relative">
               <select
+                id="ds-region-select"
                 [(ngModel)]="selectedRegion"
+                [attr.aria-label]="'home.form.region' | t"
                 class="lol-input w-full appearance-none pr-10 cursor-pointer"
               >
                 @for (region of regions(); track region.id) {
@@ -219,6 +221,13 @@ export class HomeComponent implements OnInit {
   private router = inject(Router);
   private seo = inject(SeoService);
 
+  // True only when running in a real browser. False during server-side
+  // prerendering — so HTTP fetches and localStorage reads that would
+  // otherwise crash the build can short-circuit cleanly. The static HTML
+  // rendered on the server shows the loading state, and the client fills
+  // in real data on hydration.
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
   // Key for persisting the last-used Riot ID + region in the browser.
   // Reloading the app or coming back later will auto-fill the form.
   private static readonly STORAGE_KEY = 'lol-build-recommender:search';
@@ -237,11 +246,22 @@ export class HomeComponent implements OnInit {
     // SEO — home is the primary landing page and the canonical for
     // "lol build recommender" style queries. Keep the description packed with
     // the keywords users actually search for.
+    // This runs on both server (prerender) and client — the SEO service
+    // sets <meta> tags via the DOM token which Angular's server renderer
+    // provides as a synthetic DOM, so meta tags correctly land in the
+    // prerendered HTML.
     this.seo.updatePageMeta({
       title: 'DraftSense — inteligentne buildy LoL w czasie rzeczywistym',
       description: 'Wpisz swój Riot ID, a DraftSense przeanalizuje aktywną grę League of Legends i zaproponuje optymalny build — counter pod skład wroga, anti-heal, tenacity, anti-engage. Wspiera wszystkie role i serwery.',
       url: 'https://draftsense.net/',
     });
+
+    // Everything below touches localStorage or fires HTTP — both would
+    // fail during server-side prerendering. Skip on the server, run on
+    // the client. The initial paint from the prerendered HTML shows the
+    // form with hardcoded default region fallback baked in, and client
+    // hydration replaces it with fresh Riot data.
+    if (!this.isBrowser) return;
 
     // Restore the last-used search from localStorage before any network calls.
     this.loadSavedSearch();

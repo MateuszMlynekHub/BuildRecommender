@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!--
+    DraftSense Open Graph image, 1200x630. Used by Facebook/Discord/
+    Twitter/LinkedIn/Slack unfurls and as the schema.org WebApplication
+    poster. Deliberately LoL-themed but contains NO Riot trademarks or
+    copyrighted logo assets — only shared visual language (dark navy
+    abyss background + gold accent + hexagonal motif, which is generic
+    fantasy-RPG UI design, not protectable trade dress).
+
+    All text is SVG-rendered so every social scraper sees the same words
+    regardless of font availability.
+  -->
+
+  <defs>
+    <!-- Vertical abyss gradient mirroring the hero section background -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#010A13"/>
+      <stop offset="55%"  stop-color="#091428"/>
+      <stop offset="100%" stop-color="#0A1A2E"/>
+    </linearGradient>
+
+    <!-- Radial vignette that fades edges and focuses the center logo -->
+    <radialGradient id="vignette" cx="50%" cy="50%" r="75%">
+      <stop offset="0%"   stop-color="#C89B3C" stop-opacity="0.12"/>
+      <stop offset="60%"  stop-color="#C89B3C" stop-opacity="0.02"/>
+      <stop offset="100%" stop-color="#010A13" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Gold-on-gold gradient for the wordmark — evokes the LoL item frame shine -->
+    <linearGradient id="goldText" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#F0E6D2"/>
+      <stop offset="50%"  stop-color="#C89B3C"/>
+      <stop offset="100%" stop-color="#785A28"/>
+    </linearGradient>
+
+    <!-- Slim gold-to-transparent gradient for divider line -->
+    <linearGradient id="dividerFade" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#785A28" stop-opacity="0"/>
+      <stop offset="50%"  stop-color="#C89B3C" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#785A28" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Base fill -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Decorative hex grid, bottom-left corner. Subtle, ~8% opacity. -->
+  <g opacity="0.08" fill="none" stroke="#C89B3C" stroke-width="1.5">
+    <polygon points="60,520 100,497 140,520 140,566 100,589 60,566"/>
+    <polygon points="160,520 200,497 240,520 240,566 200,589 160,566"/>
+    <polygon points="110,450 150,427 190,450 190,496 150,519 110,496"/>
+    <polygon points="210,450 250,427 290,450 290,496 250,519 210,496"/>
+    <polygon points="310,520 350,497 390,520 390,566 350,589 310,566"/>
+  </g>
+
+  <!-- Decorative hex grid, top-right corner, mirrored -->
+  <g opacity="0.08" fill="none" stroke="#C89B3C" stroke-width="1.5">
+    <polygon points="1060,40 1100,17 1140,40 1140,86 1100,109 1060,86"/>
+    <polygon points="960,40 1000,17 1040,40 1040,86 1000,109 960,86"/>
+    <polygon points="1010,110 1050,87 1090,110 1090,156 1050,179 1010,156"/>
+    <polygon points="910,110 950,87 990,110 990,156 950,179 910,156"/>
+    <polygon points="860,40 900,17 940,40 940,86 900,109 860,86"/>
+  </g>
+
+  <!-- Vignette overlay -->
+  <rect width="1200" height="630" fill="url(#vignette)"/>
+
+  <!-- Central crystal emblem: interlocking hexagon + rotated diamond.
+       Evokes the Hextech crystal visual shorthand without copying any
+       specific Arcane/LoL asset. Pure geometry. -->
+  <g transform="translate(600, 195)">
+    <!-- Outer hex frame, thick gold stroke -->
+    <polygon points="0,-80 69,-40 69,40 0,80 -69,40 -69,-40"
+             fill="none" stroke="#C89B3C" stroke-width="4"/>
+
+    <!-- Inner hex frame, thinner, inset -->
+    <polygon points="0,-58 50,-29 50,29 0,58 -50,29 -50,-29"
+             fill="none" stroke="#C8AA6E" stroke-width="2" opacity="0.75"/>
+
+    <!-- Central diamond crystal, cyan glow -->
+    <polygon points="0,-42 32,0 0,42 -32,0"
+             fill="#0AC8B9" opacity="0.22" stroke="#0AC8B9" stroke-width="2.5"/>
+
+    <!-- Diamond facet lines -->
+    <line x1="-32" y1="0" x2="32" y2="0" stroke="#0AC8B9" stroke-width="1.5" opacity="0.6"/>
+    <line x1="0" y1="-42" x2="0" y2="42" stroke="#0AC8B9" stroke-width="1.5" opacity="0.6"/>
+
+    <!-- Four corner gold prongs poking inward from hex vertices -->
+    <line x1="0" y1="-80" x2="0" y2="-58" stroke="#C89B3C" stroke-width="3"/>
+    <line x1="0" y1="80"  x2="0" y2="58"  stroke="#C89B3C" stroke-width="3"/>
+    <line x1="-69" y1="0" x2="-50" y2="0" stroke="#C89B3C" stroke-width="3"/>
+    <line x1="69" y1="0"  x2="50" y2="0"  stroke="#C89B3C" stroke-width="3"/>
+  </g>
+
+  <!-- Divider line under the crystal -->
+  <rect x="300" y="305" width="600" height="2" fill="url(#dividerFade)"/>
+
+  <!-- Wordmark "DRAFTSENSE" — large serif all-caps, gold gradient fill -->
+  <text x="600" y="410"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="96"
+        font-weight="700"
+        letter-spacing="8"
+        text-anchor="middle"
+        fill="url(#goldText)">DRAFTSENSE</text>
+
+  <!-- Tagline / subtitle -->
+  <text x="600" y="465"
+        font-family="'Segoe UI', Arial, sans-serif"
+        font-size="26"
+        font-weight="400"
+        letter-spacing="2"
+        text-anchor="middle"
+        fill="#F0E6D2"
+        opacity="0.78">LoL Build Recommender &amp; Counter Tool</text>
+
+  <!-- Feature chips row -->
+  <g font-family="'Segoe UI', Arial, sans-serif"
+     font-size="17"
+     font-weight="500"
+     text-anchor="middle"
+     fill="#C8AA6E">
+    <text x="600" y="525">
+      <tspan fill="#C89B3C">◆</tspan>
+      <tspan dx="10">Anti-Heal</tspan>
+      <tspan dx="14" fill="#C89B3C">◆</tspan>
+      <tspan dx="10">Tenacity</tspan>
+      <tspan dx="14" fill="#C89B3C">◆</tspan>
+      <tspan dx="10">Anti-Engage</tspan>
+      <tspan dx="14" fill="#C89B3C">◆</tspan>
+      <tspan dx="10">Meta Builds</tspan>
+      <tspan dx="14" fill="#C89B3C">◆</tspan>
+    </text>
+  </g>
+
+  <!-- Domain at bottom -->
+  <text x="600" y="590"
+        font-family="'Consolas', 'Courier New', monospace"
+        font-size="20"
+        font-weight="600"
+        letter-spacing="4"
+        text-anchor="middle"
+        fill="#0AC8B9"
+        opacity="0.85">draftsense.net</text>
+
+  <!-- Thin gold outer border frame — echoes the LoL item slot border -->
+  <rect x="6" y="6" width="1188" height="618"
+        fill="none" stroke="#785A28" stroke-width="2" opacity="0.5"/>
+  <rect x="14" y="14" width="1172" height="602"
+        fill="none" stroke="#C89B3C" stroke-width="1" opacity="0.3"/>
+</svg>

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
@@ -1229,12 +1230,23 @@ export class TeamShuffleComponent implements OnInit {
     () => !this.canShuffle() && this.players().some((n) => n.trim().length > 0),
   );
 
+  /**
+   * True only in a real browser — false during server-side prerender so
+   * API fetches don't fire against a backend that isn't reachable at
+   * build time (prerender crashed with "Http failure response for
+   * http://ng-localhost/api/data/version: 0 undefined" until we started
+   * guarding fetches like this).
+   */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
   ngOnInit(): void {
     this.seo.updatePageMeta({
       title: 'Team Shuffle — DraftSense',
       description: 'Randomly split up to 10 players into Blue and Red teams, with optional random champion assignment and role-appropriate picks. Perfect for custom lobbies and internal scrims.',
       url: 'https://draftsense.net/shuffle',
     });
+
+    if (!this.isBrowser) return;
 
     // Fetch the LoL patch version so champion portraits resolve to the right
     // Data Dragon CDN path. Cheap — returns a 10-byte string — and only runs

@@ -1,5 +1,5 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, PLATFORM_ID, inject, signal, OnInit } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { GameStateService } from '../../core/services/game-state.service';
@@ -346,6 +346,15 @@ export class GameViewComponent implements OnInit {
 
   private readonly laneIconCache = new Map<string, SafeHtml>();
 
+  /**
+   * False during server-side prerender — short-circuits every code path
+   * below that would otherwise crash the static build (Router.navigate,
+   * query-param inspection, HTTP fetch to /api/game/active). The
+   * prerendered /game HTML is intentionally a thin loading shell; the
+   * route is never a crawler entry point (players land via Home → search).
+   */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
   ngOnInit() {
     // SEO — the game view is per-player and noindex-worthy (each URL is dynamic
     // and has no value to a search engine), but we still set a meaningful title
@@ -355,6 +364,9 @@ export class GameViewComponent implements OnInit {
       title: 'Analiza aktywnej gry — DraftSense',
       description: 'Rekomendacje itemów dopasowane do drużyny przeciwnej w Twojej aktywnej grze League of Legends.',
     });
+
+    // Skip everything dynamic during prerender — the static HTML stops here.
+    if (!this.isBrowser) return;
 
     // If a game is already loaded in memory (normal navigation from Home), keep it.
     if (this.game()) return;
