@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, PLATFORM_ID, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { SeoService } from '../../core/services/seo.service';
-import { TPipe } from '../../shared/pipes/t.pipe';
+import { environment } from '../../../environments/environment';
 
 const REGIONS = [
   { id: 'euw1', name: 'EU West' },
@@ -16,17 +18,14 @@ const REGIONS = [
   { id: 'oc1', name: 'Oceania' },
   { id: 'tr1', name: 'Turkey' },
   { id: 'ru', name: 'Russia' },
-  { id: 'ph2', name: 'Philippines' },
-  { id: 'sg2', name: 'Singapore' },
-  { id: 'th2', name: 'Thailand' },
-  { id: 'tw2', name: 'Taiwan' },
-  { id: 'vn2', name: 'Vietnam' },
 ];
+
+const STORAGE_KEY = 'draftsense:summoner-search';
 
 @Component({
   selector: 'app-summoner-search',
   standalone: true,
-  imports: [FormsModule, TPipe],
+  imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="ss-page">
@@ -43,21 +42,11 @@ const REGIONS = [
 
         <div class="ss-form">
           <div class="ss-form__row">
-            <input
-              type="text"
-              class="ss-form__input ss-form__input--name"
-              placeholder="Game Name"
-              [(ngModel)]="gameName"
-              (keyup.enter)="search()"
-            />
+            <input type="text" class="ss-form__input ss-form__input--name" placeholder="Game Name"
+              [(ngModel)]="gameName" (keyup.enter)="search()" />
             <span class="ss-form__hash">#</span>
-            <input
-              type="text"
-              class="ss-form__input ss-form__input--tag"
-              placeholder="Tag"
-              [(ngModel)]="tagLine"
-              (keyup.enter)="search()"
-            />
+            <input type="text" class="ss-form__input ss-form__input--tag" placeholder="Tag"
+              [(ngModel)]="tagLine" (keyup.enter)="search()" />
           </div>
           <div class="ss-form__row">
             <select class="ss-form__select" [(ngModel)]="region">
@@ -65,10 +54,16 @@ const REGIONS = [
                 <option [value]="r.id">{{ r.name }}</option>
               }
             </select>
-            <button class="ss-form__btn" (click)="search()" [disabled]="!gameName.trim() || !tagLine.trim()">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-              </svg>
+            <button class="ss-form__btn" (click)="search()" [disabled]="!canSearch() || searching()">
+              @if (searching()) {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="spin">
+                  <path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/>
+                </svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+              }
               Search
             </button>
           </div>
@@ -82,7 +77,6 @@ const REGIONS = [
   styles: [`
     .ss-page { min-height: 100vh; padding: 2rem 1rem; display: flex; align-items: center; justify-content: center; }
     .ss-container { max-width: 480px; width: 100%; }
-
     .ss-hero { text-align: center; margin-bottom: 2rem; }
     .ss-hero__icon {
       display: inline-flex; align-items: center; justify-content: center;
@@ -91,7 +85,6 @@ const REGIONS = [
     }
     .ss-hero__title { font-family: 'Cinzel', serif; font-size: 1.8rem; color: var(--lol-gold-1); }
     .ss-hero__sub { color: var(--lol-text-muted); font-size: 0.82rem; margin-top: 0.3rem; }
-
     .ss-form {
       padding: 1.5rem; background: rgba(1,10,19,0.6); border: 1px solid var(--lol-gold-5);
       border-radius: 2px; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
@@ -110,7 +103,6 @@ const REGIONS = [
     .ss-form__select {
       flex: 1; padding: 0.65rem; font-size: 0.85rem; color: var(--lol-gold-1);
       background: rgba(1,10,19,0.7); border: 1px solid var(--lol-gold-5); border-radius: 2px;
-      cursor: pointer;
     }
     .ss-form__btn {
       display: inline-flex; align-items: center; gap: 0.4rem;
@@ -118,43 +110,88 @@ const REGIONS = [
       font-weight: 600; letter-spacing: 0.06em; color: var(--lol-gold-1);
       background: linear-gradient(180deg, rgba(200,155,60,0.3), rgba(200,155,60,0.15));
       border: 1px solid var(--lol-gold-3); border-radius: 2px; cursor: pointer;
-      transition: all 0.15s;
     }
     .ss-form__btn:hover:not(:disabled) { background: linear-gradient(180deg, rgba(200,155,60,0.4), rgba(200,155,60,0.2)); }
     .ss-form__btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .ss-form__error {
-      margin-top: 0.5rem; padding: 0.5rem; text-align: center; font-size: 0.78rem;
-      color: #E84057; border: 1px solid rgba(232,64,87,0.3); border-radius: 2px;
-      background: rgba(232,64,87,0.06);
+      padding: 0.6rem 0.8rem; border-radius: 2px; background: rgba(232,64,87,0.08);
+      border: 1px solid rgba(232,64,87,0.3); color: #FCA5A5; font-size: 0.78rem; text-align: center;
     }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   `],
 })
-export class SummonerSearchComponent {
+export class SummonerSearchComponent implements OnInit {
   private router = inject(Router);
   private seo = inject(SeoService);
+  private http = inject(HttpClient);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private baseUrl = environment.apiUrl;
 
   readonly regions = REGIONS;
   gameName = '';
   tagLine = '';
   region = 'euw1';
   readonly error = signal<string | null>(null);
+  readonly searching = signal(false);
 
-  constructor() {
+  ngOnInit(): void {
     this.seo.updatePageMeta({
       title: 'Summoner Lookup — Search Any Player | DraftSense',
-      description: 'Search any League of Legends player by Riot ID. View match history, KDA, champions played, and more.',
+      description: 'Search any League of Legends player by Riot ID. View match history, rank, KDA, and more.',
       url: 'https://draftsense.net/summoner',
     });
+    this.loadSavedSearch();
+  }
+
+  canSearch(): boolean {
+    return this.gameName.trim().length > 0 && this.tagLine.trim().length > 0;
   }
 
   search(): void {
     const name = this.gameName.trim();
     const tag = this.tagLine.trim();
-    if (!name || !tag) {
-      this.error.set('Enter both Game Name and Tag');
-      return;
-    }
+    if (!name || !tag) { this.error.set('Enter both Game Name and Tag'); return; }
+
     this.error.set(null);
-    this.router.navigate(['/summoner', this.region, `${name}-${tag}`]);
+    this.searching.set(true);
+    this.saveSearch();
+
+    // Validate summoner exists before navigating
+    this.http.get(`${this.baseUrl}/game/summoner`, {
+      params: { gameName: name, tagLine: tag, region: this.region },
+    }).subscribe({
+      next: () => {
+        this.searching.set(false);
+        this.router.navigate(['/summoner', this.region, `${name}-${tag}`]);
+      },
+      error: (err) => {
+        this.searching.set(false);
+        if (err.status === 404) this.error.set('Summoner not found. Check name, tag, and region.');
+        else if (err.status === 503) this.error.set('Riot API temporarily unavailable. Try again in a moment.');
+        else this.error.set('Failed to find summoner. Please try again.');
+      },
+    });
+  }
+
+  private saveSearch(): void {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        gameName: this.gameName, tagLine: this.tagLine, region: this.region,
+      }));
+    } catch {}
+  }
+
+  private loadSavedSearch(): void {
+    if (!this.isBrowser) return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw) as { gameName?: string; tagLine?: string; region?: string };
+      if (data.gameName) this.gameName = data.gameName;
+      if (data.tagLine) this.tagLine = data.tagLine;
+      if (data.region) this.region = data.region;
+    } catch {}
   }
 }
