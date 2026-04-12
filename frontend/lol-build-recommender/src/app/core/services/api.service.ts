@@ -6,6 +6,14 @@ import { ActiveGame } from '../models/active-game.model';
 import { BuildRecommendation } from '../models/build-recommendation.model';
 import { Region } from '../models/region.model';
 import { Champion } from '../models/champion.model';
+import {
+  DDragonChampionDetail,
+  DDragonChampionDetailResponse,
+  ChampionBuildStat,
+  RunePage,
+  SpellSet,
+  MatchupStat,
+} from '../models/champion-detail.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -47,6 +55,51 @@ export class ApiService {
 
   getVersion(): Observable<string> {
     return this.http.get(`${this.baseUrl}/data/version`, { responseType: 'text' });
+  }
+
+  /**
+   * Detailed champion data from DDragon per-champion endpoint. Called directly
+   * from the frontend — DDragon is a public CDN with CORS headers, no API key.
+   * Returns abilities, passive, stats, lore, tips.
+   */
+  getChampionDetail(key: string, version: string): Observable<DDragonChampionDetail> {
+    return this.http
+      .get<DDragonChampionDetailResponse>(
+        `https://ddragon.leagueoflegends.com/cdn/${version}/data/en_US/champion/${key}.json`
+      )
+      .pipe(map((res) => Object.values(res.data)[0]));
+  }
+
+  /**
+   * Build stats for a specific champion + lane from the BuildStats SQLite DB.
+   * Returns top items sorted by pick frequency on the current patch.
+   */
+  getChampionBuildStats(championId: number, lane: string, count = 10): Observable<ChampionBuildStat[]> {
+    return this.http.get<ChampionBuildStat[]>(
+      `${this.baseUrl}/data/buildstats/${championId}/${lane}`,
+      { params: { count: count.toString() } },
+    );
+  }
+
+  getChampionRunes(championId: number, lane: string, count = 5): Observable<RunePage[]> {
+    return this.http.get<RunePage[]>(
+      `${this.baseUrl}/data/buildstats/${championId}/${lane}/runes`,
+      { params: { count: count.toString() } },
+    );
+  }
+
+  getChampionSpells(championId: number, lane: string, count = 5): Observable<SpellSet[]> {
+    return this.http.get<SpellSet[]>(
+      `${this.baseUrl}/data/buildstats/${championId}/${lane}/spells`,
+      { params: { count: count.toString() } },
+    );
+  }
+
+  getChampionMatchups(championId: number, lane: string, count = 10): Observable<MatchupStat[]> {
+    return this.http.get<MatchupStat[]>(
+      `${this.baseUrl}/data/buildstats/${championId}/${lane}/matchups`,
+      { params: { count: count.toString() } },
+    );
   }
 
   /**

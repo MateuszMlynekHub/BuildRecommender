@@ -1,0 +1,519 @@
+import { ChangeDetectionStrategy, Component, OnInit, PLATFORM_ID, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
+import { ApiService } from '../../core/services/api.service';
+import { GameStateService } from '../../core/services/game-state.service';
+import { SeoService } from '../../core/services/seo.service';
+import { Champion } from '../../core/models/champion.model';
+import {
+  DDragonChampionDetail, ChampionBuildStat, RunePage, SpellSet, MatchupStat,
+} from '../../core/models/champion-detail.model';
+import { TPipe } from '../../shared/pipes/t.pipe';
+
+const SPELL_KEYS = ['Q', 'W', 'E', 'R'] as const;
+
+/** Summoner spell ID → name mapping (Riot static data). */
+const SUMMONER_SPELLS: Record<number, { name: string; img: string }> = {
+  1:  { name: 'Cleanse',    img: 'SummonerBoost.png' },
+  3:  { name: 'Exhaust',    img: 'SummonerExhaust.png' },
+  4:  { name: 'Flash',      img: 'SummonerFlash.png' },
+  6:  { name: 'Ghost',      img: 'SummonerHaste.png' },
+  7:  { name: 'Heal',       img: 'SummonerHeal.png' },
+  11: { name: 'Smite',      img: 'SummonerSmite.png' },
+  12: { name: 'Teleport',   img: 'SummonerTeleport.png' },
+  14: { name: 'Ignite',     img: 'SummonerDot.png' },
+  21: { name: 'Barrier',    img: 'SummonerBarrier.png' },
+  32: { name: 'Snowball',   img: 'SummonerSnowball.png' },
+};
+
+/** Rune tree ID → name + color. */
+const RUNE_TREES: Record<number, { name: string; color: string }> = {
+  8000: { name: 'Precision',   color: '#C8AA6E' },
+  8100: { name: 'Domination',  color: '#D44242' },
+  8200: { name: 'Sorcery',     color: '#9B6FE3' },
+  8300: { name: 'Inspiration', color: '#49AAD1' },
+  8400: { name: 'Resolve',     color: '#A8D26A' },
+};
+
+@Component({
+  selector: 'app-champion-detail',
+  standalone: true,
+  imports: [RouterLink, TPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="cd-page">
+      @if (detail()) {
+        @let d = detail()!;
+        @let v = version();
+
+        <!-- Hero -->
+        <div class="cd-hero">
+          <a routerLink="/champions" class="cd-hero__back">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+            {{ 'champions.title' | t }}
+          </a>
+
+          <div class="cd-hero__main">
+            <img class="cd-hero__portrait"
+              [src]="'https://ddragon.leagueoflegends.com/cdn/' + v + '/img/champion/' + championInfo()?.imageFileName"
+              [alt]="d.name" width="90" height="90" />
+            <div class="cd-hero__info">
+              <h1 class="cd-hero__name">{{ d.name }}</h1>
+              <div class="cd-hero__title">{{ d.title }}</div>
+              <div class="cd-hero__tags">
+                @for (tag of d.tags; track tag) { <span class="cd-hero__tag">{{ tag }}</span> }
+                @for (pos of championInfo()?.positions ?? []; track pos) { <span class="cd-hero__pos">{{ pos }}</span> }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two-column layout -->
+        <div class="cd-grid">
+          <!-- LEFT COLUMN -->
+          <div class="cd-col">
+
+            <!-- Runes -->
+              <section class="cd-section">
+                <h2 class="cd-section__title">Runes</h2>
+            @if (runes().length > 0) {
+                @for (rp of runes(); track $index; let first = $first) {
+                  <div class="cd-rune" [class.cd-rune--primary]="first">
+                    <div class="cd-rune__header">
+                      <div class="cd-rune__trees">
+                        <span class="cd-rune__tree" [style.color]="runeTreeColor(rp.primaryStyle)">{{ runeTreeName(rp.primaryStyle) }}</span>
+                        <span class="cd-rune__sep">/</span>
+                        <span class="cd-rune__tree" [style.color]="runeTreeColor(rp.subStyle)">{{ runeTreeName(rp.subStyle) }}</span>
+                      </div>
+                      <div class="cd-rune__meta">
+                        <span class="cd-rune__wr">{{ (rp.winRate * 100).toFixed(1) }}% WR</span>
+                        <span class="cd-rune__pr">{{ rp.picks }} games</span>
+                      </div>
+                    </div>
+                    <div class="cd-rune__perks">
+                      @for (perkId of rp.perks; track $index; let i = $index) {
+                        <img class="cd-rune__perk-img"
+                          [src]="'https://ddragon.leagueoflegends.com/cdn/img/perk-images/' + perkId + '.png'"
+                          [alt]="'Perk ' + perkId"
+                          width="28" height="28"
+                          loading="lazy"
+                          (error)="onPerkImgError($event)"
+                          [class.cd-rune__perk-img--keystone]="i === 0"
+                        />
+                      }
+                    </div>
+                  </div>
+                }
+            } @else {
+                <div class="cd-empty">Collecting rune data from Challenger matches...</div>
+            }
+              </section>
+
+            <!-- Summoner Spells -->
+              <section class="cd-section">
+                <h2 class="cd-section__title">Summoner Spells</h2>
+            @if (spells().length > 0) {
+                @for (sp of spells(); track $index) {
+                  <div class="cd-spell-row">
+                    <div class="cd-spell-row__icons">
+                      <img class="cd-spell-row__img"
+                        [src]="spellImgUrl(sp.spell1Id)"
+                        [alt]="spellName(sp.spell1Id)"
+                        width="32" height="32" />
+                      <img class="cd-spell-row__img"
+                        [src]="spellImgUrl(sp.spell2Id)"
+                        [alt]="spellName(sp.spell2Id)"
+                        width="32" height="32" />
+                    </div>
+                    <div class="cd-spell-row__names">{{ spellName(sp.spell1Id) }} + {{ spellName(sp.spell2Id) }}</div>
+                    <div class="cd-spell-row__stats">
+                      <span class="cd-spell-row__wr">{{ (sp.winRate * 100).toFixed(1) }}%</span>
+                      <span class="cd-spell-row__picks">{{ sp.picks }} games</span>
+                    </div>
+                  </div>
+                }
+            } @else {
+                <div class="cd-empty">Collecting summoner spell data...</div>
+            }
+              </section>
+
+            <!-- Abilities -->
+            <section class="cd-section">
+              <h2 class="cd-section__title">{{ 'champion.abilities' | t }}</h2>
+              <div class="cd-abilities">
+                <div class="cd-ability">
+                  <div class="cd-ability__header">
+                    <img class="cd-ability__icon"
+                      [src]="'https://ddragon.leagueoflegends.com/cdn/' + v + '/img/passive/' + d.passive.image.full"
+                      [alt]="d.passive.name" width="36" height="36" />
+                    <div class="cd-ability__key cd-ability__key--passive">P</div>
+                    <div class="cd-ability__name">{{ d.passive.name }}</div>
+                  </div>
+                  <div class="cd-ability__desc" [innerHTML]="d.passive.description"></div>
+                </div>
+                @for (spell of d.spells; track spell.id; let i = $index) {
+                  <div class="cd-ability">
+                    <div class="cd-ability__header">
+                      <img class="cd-ability__icon"
+                        [src]="'https://ddragon.leagueoflegends.com/cdn/' + v + '/img/spell/' + spell.image.full"
+                        [alt]="spell.name" width="36" height="36" />
+                      <div class="cd-ability__key">{{ spellKeys[i] }}</div>
+                      <div class="cd-ability__name">{{ spell.name }}</div>
+                    </div>
+                    <div class="cd-ability__meta">
+                      @if (spell.cooldownBurn && spell.cooldownBurn !== '0') {
+                        <span>CD: {{ spell.cooldownBurn }}s</span>
+                      }
+                      @if (spell.costBurn && spell.costBurn !== '0') {
+                        <span>Cost: {{ spell.costBurn }}</span>
+                      }
+                    </div>
+                    <div class="cd-ability__desc" [innerHTML]="spell.description"></div>
+                  </div>
+                }
+              </div>
+            </section>
+          </div>
+
+          <!-- RIGHT COLUMN -->
+          <div class="cd-col">
+
+            <!-- Counters -->
+              <section class="cd-section">
+                <h2 class="cd-section__title">Matchups / Counters</h2>
+            @if (matchups().length > 0) {
+                <div class="cd-matchups">
+                  @for (m of matchups(); track m.opponentChampionId) {
+                    <a class="cd-matchup" [routerLink]="['/champion', m.opponentChampionKey]">
+                      <img class="cd-matchup__img"
+                        [src]="gameState.getChampionImageUrl(m.opponentChampionKey + '.png')"
+                        [alt]="m.opponentChampionKey"
+                        width="32" height="32" loading="lazy" />
+                      <span class="cd-matchup__name">{{ m.opponentChampionKey }}</span>
+                      <span class="cd-matchup__wr" [class.cd-matchup__wr--bad]="m.winRate < 0.5">
+                        {{ (m.winRate * 100).toFixed(1) }}%
+                      </span>
+                      <span class="cd-matchup__games">{{ m.picks }}g</span>
+                    </a>
+                  }
+                </div>
+            } @else {
+                <div class="cd-empty">Collecting matchup data...</div>
+            }
+              </section>
+
+            <!-- Popular Items -->
+              <section class="cd-section">
+                <h2 class="cd-section__title">{{ 'champion.popularItems' | t }}</h2>
+            @if (buildStats().length > 0) {
+                <div class="cd-items">
+                  @for (item of buildStats(); track item.itemId; let i = $index) {
+                    <div class="cd-item" [class.cd-item--top3]="i < 3">
+                      <img class="cd-item__img"
+                        [src]="gameState.getItemImageUrl(item.itemId + '.png')"
+                        [alt]="item.itemName"
+                        width="36" height="36" loading="lazy" />
+                      <div class="cd-item__info">
+                        <div class="cd-item__name">{{ item.itemName }}</div>
+                        <div class="cd-item__stats">
+                          <span class="cd-item__wr">{{ winRate(item) }}% WR</span>
+                          <span class="cd-item__picks">{{ item.picks }} games</span>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+            } @else {
+                <div class="cd-empty">Collecting item build data from Challenger matches...</div>
+            }
+              </section>
+
+            <!-- Stats -->
+            <section class="cd-section">
+              <h2 class="cd-section__title">{{ 'champion.stats' | t }}</h2>
+              <div class="cd-stats">
+                <div class="cd-stat"><span class="cd-stat__label">HP</span><span class="cd-stat__val">{{ d.stats.hp }} <small>+{{ d.stats.hpperlevel }}</small></span></div>
+                <div class="cd-stat"><span class="cd-stat__label">AD</span><span class="cd-stat__val">{{ d.stats.attackdamage }} <small>+{{ d.stats.attackdamageperlevel }}</small></span></div>
+                <div class="cd-stat"><span class="cd-stat__label">Armor</span><span class="cd-stat__val">{{ d.stats.armor }} <small>+{{ d.stats.armorperlevel }}</small></span></div>
+                <div class="cd-stat"><span class="cd-stat__label">MR</span><span class="cd-stat__val">{{ d.stats.spellblock }} <small>+{{ d.stats.spellblockperlevel }}</small></span></div>
+                <div class="cd-stat"><span class="cd-stat__label">AS</span><span class="cd-stat__val">{{ d.stats.attackspeed }} <small>+{{ d.stats.attackspeedperlevel }}%</small></span></div>
+                <div class="cd-stat"><span class="cd-stat__label">MS</span><span class="cd-stat__val">{{ d.stats.movespeed }}</span></div>
+                <div class="cd-stat"><span class="cd-stat__label">Range</span><span class="cd-stat__val">{{ d.stats.attackrange }}</span></div>
+                <div class="cd-stat"><span class="cd-stat__label">HP Regen</span><span class="cd-stat__val">{{ d.stats.hpregen }} <small>+{{ d.stats.hpregenperlevel }}</small></span></div>
+              </div>
+            </section>
+
+            <!-- Lore -->
+            <section class="cd-section">
+              <h2 class="cd-section__title">{{ 'champion.lore' | t }}</h2>
+              <p class="cd-lore">{{ d.lore }}</p>
+            </section>
+          </div>
+        </div>
+
+        <!-- Tips -->
+        @if (d.allytips.length > 0 || d.enemytips.length > 0) {
+          <section class="cd-section cd-tips-section">
+            @if (d.allytips.length > 0) {
+              <h2 class="cd-section__title">{{ 'champion.tips.ally' | t }}</h2>
+              <ul class="cd-tips">@for (tip of d.allytips; track $index) { <li>{{ tip }}</li> }</ul>
+            }
+            @if (d.enemytips.length > 0) {
+              <h2 class="cd-section__title" style="margin-top:1rem">{{ 'champion.tips.enemy' | t }}</h2>
+              <ul class="cd-tips">@for (tip of d.enemytips; track $index) { <li>{{ tip }}</li> }</ul>
+            }
+          </section>
+        }
+
+      } @else if (loading()) {
+        <div class="cd-loading">
+          <div class="shimmer" style="width:90px;height:90px;border-radius:50%;margin:2rem auto"></div>
+          <div class="shimmer" style="width:200px;height:24px;margin:1rem auto;border-radius:2px"></div>
+        </div>
+      }
+    </div>
+  `,
+  styles: [`
+    .cd-page { min-height: 100vh; padding: 2rem 1rem 3rem; max-width: 1100px; margin: 0 auto; }
+    .cd-loading { padding: 4rem 1rem; }
+
+    /* Hero */
+    .cd-hero { margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--lol-gold-5); }
+    .cd-hero__back {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      color: var(--lol-gold-4); text-decoration: none; font-size: 0.78rem;
+      font-family: 'Cinzel', serif; letter-spacing: 0.06em; margin-bottom: 1rem; transition: color 0.15s;
+    }
+    .cd-hero__back:hover { color: var(--lol-gold-2); }
+    .cd-hero__main { display: flex; align-items: center; gap: 1.25rem; }
+    .cd-hero__portrait {
+      width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--lol-gold-3);
+      object-fit: cover; box-shadow: 0 0 20px rgba(200,155,60,0.3); flex-shrink: 0;
+    }
+    .cd-hero__name {
+      font-family: 'Cinzel', serif; font-size: clamp(1.6rem, 4vw, 2.4rem);
+      color: var(--lol-gold-1); letter-spacing: 0.03em; line-height: 1.1; margin-bottom: 0.2rem;
+    }
+    .cd-hero__title { font-style: italic; color: var(--lol-text-muted); font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: capitalize; }
+    .cd-hero__tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .cd-hero__tag, .cd-hero__pos {
+      padding: 0.15rem 0.5rem; font-size: 0.6rem; font-family: 'Cinzel', serif;
+      letter-spacing: 0.08em; text-transform: uppercase; border-radius: 2px;
+    }
+    .cd-hero__tag { color: var(--lol-cyan); border: 1px solid rgba(10,200,185,0.3); background: rgba(10,200,185,0.06); }
+    .cd-hero__pos { color: var(--lol-gold-2); border: 1px solid var(--lol-gold-5); background: rgba(200,155,60,0.06); }
+
+    /* Grid layout */
+    .cd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    @media (max-width: 768px) { .cd-grid { grid-template-columns: 1fr; } }
+    .cd-col { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    /* Section */
+    .cd-section {
+      padding: 1rem; background: rgba(1,10,19,0.55);
+      border: 1px solid var(--lol-gold-5); border-radius: 2px;
+    }
+    .cd-tips-section { grid-column: 1 / -1; }
+    .cd-section__title {
+      font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--lol-gold-2); margin-bottom: 0.75rem;
+      padding-bottom: 0.4rem; border-bottom: 1px solid var(--lol-gold-5);
+    }
+
+    /* Runes */
+    .cd-rune { padding: 0.6rem; margin-bottom: 0.5rem; background: rgba(1,10,19,0.4); border: 1px solid var(--lol-gold-5); border-radius: 2px; }
+    .cd-rune--primary { border-color: var(--lol-gold-4); background: rgba(200,155,60,0.06); }
+    .cd-rune__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.4rem; }
+    .cd-rune__trees { font-size: 0.78rem; font-weight: 600; }
+    .cd-rune__tree { font-family: 'Cinzel', serif; }
+    .cd-rune__sep { color: var(--lol-text-dim); margin: 0 0.3rem; }
+    .cd-rune__meta { display: flex; gap: 0.6rem; font-size: 0.68rem; }
+    .cd-rune__wr { color: var(--lol-cyan); font-weight: 600; }
+    .cd-rune__pr { color: var(--lol-text-muted); }
+    .cd-rune__perks { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .cd-rune__perk-img {
+      width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--lol-gold-5);
+      background: rgba(1,10,19,0.6);
+    }
+    .cd-rune__perk-img--keystone { width: 34px; height: 34px; border-color: var(--lol-gold-3); }
+
+    /* Spells */
+    .cd-spell-row {
+      display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem;
+      margin-bottom: 0.4rem; background: rgba(1,10,19,0.4); border: 1px solid var(--lol-gold-5); border-radius: 2px;
+    }
+    .cd-spell-row__icons { display: flex; gap: 0.3rem; }
+    .cd-spell-row__img { width: 32px; height: 32px; border-radius: 4px; border: 1px solid var(--lol-gold-5); }
+    .cd-spell-row__names { flex: 1; font-size: 0.78rem; color: var(--lol-gold-1); font-weight: 500; }
+    .cd-spell-row__stats { display: flex; gap: 0.5rem; font-size: 0.68rem; }
+    .cd-spell-row__wr { color: var(--lol-cyan); font-weight: 600; }
+    .cd-spell-row__picks { color: var(--lol-text-muted); }
+
+    /* Matchups */
+    .cd-matchups { display: flex; flex-direction: column; gap: 0.35rem; }
+    .cd-matchup {
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.5rem;
+      background: rgba(1,10,19,0.4); border: 1px solid var(--lol-gold-5); border-radius: 2px;
+      text-decoration: none; transition: all 0.15s;
+    }
+    .cd-matchup:hover { border-color: var(--lol-gold-4); background: rgba(200,155,60,0.06); }
+    .cd-matchup__img { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--lol-gold-5); }
+    .cd-matchup__name { flex: 1; font-size: 0.78rem; color: var(--lol-gold-1); font-weight: 500; }
+    .cd-matchup__wr { font-size: 0.75rem; font-weight: 700; color: var(--lol-cyan); }
+    .cd-matchup__wr--bad { color: #E84057; }
+    .cd-matchup__games { font-size: 0.65rem; color: var(--lol-text-muted); min-width: 30px; text-align: right; }
+
+    /* Items */
+    .cd-items { display: flex; flex-direction: column; gap: 0.35rem; }
+    .cd-item {
+      display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.5rem;
+      background: rgba(1,10,19,0.4); border: 1px solid var(--lol-gold-5); border-radius: 2px;
+    }
+    .cd-item--top3 { border-color: var(--lol-gold-4); background: rgba(200,155,60,0.06); }
+    .cd-item__img { border-radius: 2px; border: 1px solid var(--lol-gold-5); flex-shrink: 0; }
+    .cd-item__name { font-size: 0.78rem; font-weight: 600; color: var(--lol-gold-1); }
+    .cd-item__stats { display: flex; gap: 0.5rem; font-size: 0.68rem; }
+    .cd-item__wr { color: var(--lol-cyan); font-weight: 600; }
+    .cd-item__picks { color: var(--lol-text-muted); }
+
+    /* Stats */
+    .cd-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+    .cd-stat { display: flex; justify-content: space-between; padding: 0.3rem 0.5rem; background: rgba(200,155,60,0.04); border-radius: 2px; }
+    .cd-stat__label { font-size: 0.72rem; color: var(--lol-text-muted); font-weight: 600; }
+    .cd-stat__val { font-size: 0.75rem; color: var(--lol-gold-1); font-weight: 600; }
+    .cd-stat__val small { color: var(--lol-gold-4); font-weight: 400; font-size: 0.65rem; }
+
+    /* Abilities */
+    .cd-abilities { display: flex; flex-direction: column; gap: 0.6rem; }
+    .cd-ability { padding: 0.6rem; background: rgba(1,10,19,0.4); border: 1px solid var(--lol-gold-5); border-radius: 2px; }
+    .cd-ability__header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
+    .cd-ability__icon { width: 36px; height: 36px; border-radius: 4px; border: 1px solid var(--lol-gold-4); flex-shrink: 0; }
+    .cd-ability__key {
+      width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 0.65rem; font-weight: 700;
+      color: var(--lol-gold-1); background: rgba(200,155,60,0.15);
+      border: 1px solid var(--lol-gold-4); border-radius: 2px; flex-shrink: 0;
+    }
+    .cd-ability__key--passive { color: var(--lol-cyan); background: rgba(10,200,185,0.12); border-color: rgba(10,200,185,0.4); }
+    .cd-ability__name { font-weight: 600; font-size: 0.82rem; color: var(--lol-gold-1); }
+    .cd-ability__meta { display: flex; gap: 0.6rem; font-size: 0.65rem; color: var(--lol-text-muted); margin-bottom: 0.3rem; }
+    .cd-ability__desc { font-size: 0.73rem; line-height: 1.5; color: var(--lol-gold-1); }
+
+    /* Tips */
+    .cd-tips { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+    .cd-tips li {
+      padding: 0.4rem 0.6rem; font-size: 0.75rem; line-height: 1.45; color: var(--lol-gold-1);
+      background: rgba(1,10,19,0.4); border-left: 2px solid var(--lol-gold-4); border-radius: 0 2px 2px 0;
+    }
+
+    /* Empty state */
+    .cd-empty {
+      padding: 1rem; text-align: center; font-size: 0.78rem; color: var(--lol-text-dim);
+      font-style: italic; background: rgba(200,155,60,0.04); border-radius: 2px;
+      border: 1px dashed var(--lol-gold-5);
+    }
+
+    /* Lore */
+    .cd-lore { font-size: 0.78rem; line-height: 1.6; color: var(--lol-text-muted); font-style: italic; }
+  `],
+})
+export class ChampionDetailComponent implements OnInit {
+  private api = inject(ApiService);
+  private route = inject(ActivatedRoute);
+  private seo = inject(SeoService);
+  readonly gameState = inject(GameStateService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  readonly detail = signal<DDragonChampionDetail | null>(null);
+  readonly championInfo = signal<Champion | null>(null);
+  readonly buildStats = signal<ChampionBuildStat[]>([]);
+  readonly runes = signal<RunePage[]>([]);
+  readonly spells = signal<SpellSet[]>([]);
+  readonly matchups = signal<MatchupStat[]>([]);
+  readonly loading = signal(true);
+  readonly spellKeys = SPELL_KEYS;
+
+  version(): string {
+    return this.gameState.ddragonVersion();
+  }
+
+  ngOnInit(): void {
+    const key = this.route.snapshot.paramMap.get('key') ?? '';
+
+    this.seo.updatePageMeta({
+      title: `${key} Build — Counter Items & Best Build | DraftSense`,
+      description: `Best ${key} build for League of Legends. Runes, summoner spells, counter matchups, skill order, and item builds from Challenger data.`,
+      url: `https://draftsense.net/champion/${key}`,
+    });
+
+    if (!this.isBrowser) return;
+
+    const version = this.gameState.ddragonVersion();
+
+    forkJoin({
+      detail: this.api.getChampionDetail(key, version),
+      champions: this.api.getChampions(),
+    }).subscribe({
+      next: ({ detail, champions }) => {
+        this.detail.set(detail);
+        const info = champions.find((c) => c.key === key) ?? null;
+        this.championInfo.set(info);
+        this.loading.set(false);
+
+        this.seo.updatePageMeta({
+          title: `${detail.name} Build — Counter Items & Best Build | DraftSense`,
+          description: `Best ${detail.name} build for LoL. ${detail.title}. Runes, summoner spells, counter matchups, and Challenger meta builds.`,
+          url: `https://draftsense.net/champion/${key}`,
+        });
+
+        if (info && info.positions.length > 0) {
+          const lane = info.positions[0];
+          this.api.getChampionBuildStats(info.id, lane).subscribe({
+            next: (stats) => this.buildStats.set(stats),
+          });
+          this.api.getChampionRunes(info.id, lane).subscribe({
+            next: (r) => this.runes.set(r),
+          });
+          this.api.getChampionSpells(info.id, lane).subscribe({
+            next: (s) => this.spells.set(s),
+          });
+          this.api.getChampionMatchups(info.id, lane).subscribe({
+            next: (m) => this.matchups.set(m),
+          });
+        }
+      },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  winRate(item: ChampionBuildStat): string {
+    if (item.picks === 0) return '0';
+    return ((item.wins / item.picks) * 100).toFixed(1);
+  }
+
+  runeTreeName(id: number): string {
+    return RUNE_TREES[id]?.name ?? `Tree ${id}`;
+  }
+
+  runeTreeColor(id: number): string {
+    return RUNE_TREES[id]?.color ?? '#C8AA6E';
+  }
+
+  spellName(id: number): string {
+    return SUMMONER_SPELLS[id]?.name ?? `Spell ${id}`;
+  }
+
+  spellImgUrl(id: number): string {
+    const v = this.version();
+    const img = SUMMONER_SPELLS[id]?.img ?? 'SummonerFlash.png';
+    return `https://ddragon.leagueoflegends.com/cdn/${v}/img/spell/${img}`;
+  }
+
+  onPerkImgError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    img.style.display = 'none';
+  }
+}

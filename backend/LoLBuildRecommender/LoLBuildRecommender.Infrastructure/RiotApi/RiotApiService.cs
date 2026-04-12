@@ -99,7 +99,16 @@ public class RiotApiService : IRiotApiService
             {
                 ChampionId = p.ChampionId,
                 TeamPosition = p.TeamPosition,
+                TeamId = p.TeamId,
                 Items = new[] { p.Item0, p.Item1, p.Item2, p.Item3, p.Item4, p.Item5 },
+                Summoner1Id = p.Summoner1Id,
+                Summoner2Id = p.Summoner2Id,
+                PrimaryStyle = p.Perks?.Styles?.ElementAtOrDefault(0)?.Style ?? 0,
+                SubStyle = p.Perks?.Styles?.ElementAtOrDefault(1)?.Style ?? 0,
+                Perks = ExtractPerks(p.Perks),
+                StatOffense = p.Perks?.StatPerks?.Offense ?? 0,
+                StatFlex = p.Perks?.StatPerks?.Flex ?? 0,
+                StatDefense = p.Perks?.StatPerks?.Defense ?? 0,
                 Win = p.Win,
             }).ToList(),
         };
@@ -154,5 +163,18 @@ public class RiotApiService : IRiotApiService
                 PickTurn = b.PickTurn,
             }).ToList(),
         };
+    }
+
+    /// <summary>
+    /// Flatten the nested Riot perks structure into a flat 6-element array:
+    /// [primary keystone, primary row1, primary row2, primary row3, secondary slot1, secondary slot2].
+    /// </summary>
+    private static int[] ExtractPerks(MatchPerksDto? perks)
+    {
+        if (perks?.Styles is null || perks.Styles.Count < 2) return [];
+        return perks.Styles
+            .SelectMany(s => s.Selections)
+            .Select(sel => sel.Perk)
+            .ToArray();
     }
 }

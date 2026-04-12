@@ -14,6 +14,9 @@ public class BuildStatsDbContext : DbContext
         : base(options) { }
 
     public DbSet<ItemStatEntity> ItemStats => Set<ItemStatEntity>();
+    public DbSet<RuneStatEntity> RuneStats => Set<RuneStatEntity>();
+    public DbSet<SpellStatEntity> SpellStats => Set<SpellStatEntity>();
+    public DbSet<MatchupStatEntity> MatchupStats => Set<MatchupStatEntity>();
     public DbSet<CrawlMetadataEntity> CrawlMetadata => Set<CrawlMetadataEntity>();
     public DbSet<ProcessedMatchEntity> ProcessedMatches => Set<ProcessedMatchEntity>();
 
@@ -32,6 +35,46 @@ public class BuildStatsDbContext : DbContext
 
             // Uniqueness guard so aggregation never inserts a duplicate row.
             e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role, x.ItemId })
+                .IsUnique();
+        });
+
+        mb.Entity<RuneStatEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Patch).HasMaxLength(16).IsRequired();
+            e.Property(x => x.ChampionKey).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Role).HasMaxLength(16).IsRequired();
+
+            e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role });
+            e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role,
+                x.PrimaryStyle, x.SubStyle,
+                x.Perk0, x.Perk1, x.Perk2, x.Perk3, x.Perk4, x.Perk5,
+                x.StatOffense, x.StatFlex, x.StatDefense })
+                .IsUnique();
+        });
+
+        mb.Entity<SpellStatEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Patch).HasMaxLength(16).IsRequired();
+            e.Property(x => x.ChampionKey).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Role).HasMaxLength(16).IsRequired();
+
+            e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role });
+            e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role, x.Spell1Id, x.Spell2Id })
+                .IsUnique();
+        });
+
+        mb.Entity<MatchupStatEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Patch).HasMaxLength(16).IsRequired();
+            e.Property(x => x.ChampionKey).HasMaxLength(64).IsRequired();
+            e.Property(x => x.OpponentChampionKey).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Role).HasMaxLength(16).IsRequired();
+
+            e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role });
+            e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role, x.OpponentChampionId })
                 .IsUnique();
         });
 

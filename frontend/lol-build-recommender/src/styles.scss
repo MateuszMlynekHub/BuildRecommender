@@ -44,7 +44,12 @@
 // Google Fonts is the closest free substitute), Spiegel-like
 // humanist sans for body (Inter).
 // ============================================================
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+// Fonts loaded via <link> in index.html — NOT via CSS @import here.
+// Reason: @import in CSS creates a render-blocking chain:
+//   HTML → styles.css → Google Fonts CSS → .woff2 files (4 hops, ~4.3s)
+// Moving to <link> in HTML starts the font download in parallel with CSS:
+//   HTML → styles.css  }  (2 hops in parallel, ~1.5s)
+//   HTML → Google Fonts }
 
 body {
   margin: 0;

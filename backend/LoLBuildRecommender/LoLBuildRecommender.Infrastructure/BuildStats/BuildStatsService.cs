@@ -60,6 +60,68 @@ public class BuildStatsService : IBuildStatsService
         return rows;
     }
 
+    public async Task<IReadOnlyList<RunePage>> GetTopRunePagesAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default)
+    {
+        var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
+        if (string.IsNullOrEmpty(patch)) return Array.Empty<RunePage>();
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.RuneStats.AsNoTracking()
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
+            .OrderByDescending(s => s.Picks)
+            .ThenByDescending(s => s.Wins)
+            .Take(count)
+            .Select(r => new RunePage
+            {
+                PrimaryStyle = r.PrimaryStyle, SubStyle = r.SubStyle,
+                Perks = new[] { r.Perk0, r.Perk1, r.Perk2, r.Perk3, r.Perk4, r.Perk5 },
+                StatOffense = r.StatOffense, StatFlex = r.StatFlex, StatDefense = r.StatDefense,
+                Picks = r.Picks, Wins = r.Wins,
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<SpellSet>> GetTopSpellsAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default)
+    {
+        var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
+        if (string.IsNullOrEmpty(patch)) return Array.Empty<SpellSet>();
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.SpellStats.AsNoTracking()
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
+            .OrderByDescending(s => s.Picks)
+            .ThenByDescending(s => s.Wins)
+            .Take(count)
+            .Select(r => new SpellSet
+            {
+                Spell1Id = r.Spell1Id, Spell2Id = r.Spell2Id,
+                Picks = r.Picks, Wins = r.Wins,
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<MatchupStat>> GetMatchupsAsync(
+        int championId, string lane, int count = 10, CancellationToken ct = default)
+    {
+        var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
+        if (string.IsNullOrEmpty(patch)) return Array.Empty<MatchupStat>();
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.MatchupStats.AsNoTracking()
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
+            .OrderByDescending(s => s.Picks)
+            .Take(count)
+            .Select(r => new MatchupStat
+            {
+                OpponentChampionId = r.OpponentChampionId,
+                OpponentChampionKey = r.OpponentChampionKey,
+                Picks = r.Picks, Wins = r.Wins,
+            })
+            .ToListAsync(ct);
+    }
+
     public async Task<BuildStatsMetadata> GetMetadataAsync(CancellationToken ct = default)
     {
         var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());

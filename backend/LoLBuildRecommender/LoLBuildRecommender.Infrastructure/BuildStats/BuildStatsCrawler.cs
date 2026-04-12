@@ -49,8 +49,9 @@ public class BuildStatsCrawler
     /// Version history:
     ///   1 — initial release (no aliases)
     ///   2 — added Muramana→Manamune / Seraph's→Archangel's / Fimbulwinter→Winter's alias map
+    ///   3 — expanded crawler to collect runes, summoner spells, and matchup data
     /// </summary>
-    public const int CurrentDataVersion = 2;
+    public const int CurrentDataVersion = 3;
 
     /// <summary>
     /// Maps auto-upgraded item forms to their purchasable base. When a player's final
@@ -238,6 +239,9 @@ public class BuildStatsCrawler
         // by 100 every ~2.5 minutes with dev key) and a crash during the multi-hour backfill
         // only loses the current batch, not everything.
         var batchAggregate = new Dictionary<(int championId, string role, int itemId), AggregatedStat>();
+        var batchRuneAggregate = new Dictionary<(int championId, string role, int ps, int ss, int p0, int p1, int p2, int p3, int p4, int p5, int so, int sf, int sd), AggregatedRuneStat>();
+        var batchSpellAggregate = new Dictionary<(int championId, string role, int spell1, int spell2), AggregatedSpellStat>();
+        var batchMatchupAggregate = new Dictionary<(int championId, string role, int opponentId), AggregatedMatchupStat>();
         var batchMatchIds = new List<string>();
         var batchAggregatedCount = 0;  // matches in the current batch that contributed to ItemStats
         var totalProcessed = 0;
@@ -312,6 +316,77 @@ public class BuildStatsCrawler
                     stat.Picks++;
                     if (p.Win) stat.Wins++;
                 }
+
+                // --- Rune aggregation ---
+                if (p.Perks.Length == 6 && p.PrimaryStyle != 0)
+                {
+                    var runeKey = (p.ChampionId, role, p.PrimaryStyle, p.SubStyle,
+                        p.Perks[0], p.Perks[1], p.Perks[2], p.Perks[3], p.Perks[4], p.Perks[5],
+                        p.StatOffense, p.StatFlex, p.StatDefense);
+                    if (!batchRuneAggregate.TryGetValue(runeKey, out var runeStat))
+                    {
+                        runeStat = new AggregatedRuneStat
+                        {
+                            ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
+                            PrimaryStyle = p.PrimaryStyle, SubStyle = p.SubStyle,
+                            Perk0 = p.Perks[0], Perk1 = p.Perks[1], Perk2 = p.Perks[2],
+                            Perk3 = p.Perks[3], Perk4 = p.Perks[4], Perk5 = p.Perks[5],
+                            StatOffense = p.StatOffense, StatFlex = p.StatFlex, StatDefense = p.StatDefense,
+                        };
+                        batchRuneAggregate[runeKey] = runeStat;
+                    }
+                    runeStat.Picks++;
+                    if (p.Win) runeStat.Wins++;
+                }
+
+                // --- Summoner spell aggregation (normalized: min first) ---
+                if (p.Summoner1Id != 0 && p.Summoner2Id != 0)
+                {
+                    var s1 = Math.Min(p.Summoner1Id, p.Summoner2Id);
+                    var s2 = Math.Max(p.Summoner1Id, p.Summoner2Id);
+                    var spellKey = (p.ChampionId, role, s1, s2);
+                    if (!batchSpellAggregate.TryGetValue(spellKey, out var spellStat))
+                    {
+                        spellStat = new AggregatedSpellStat
+                        {
+                            ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
+                            Spell1Id = s1, Spell2Id = s2,
+                        };
+                        batchSpellAggregate[spellKey] = spellStat;
+                    }
+                    spellStat.Picks++;
+                    if (p.Win) spellStat.Wins++;
+                }
+            }
+
+            // --- Matchup extraction: pair each participant with their lane opponent ---
+            var byTeamAndRole = match.Participants
+                .Where(p => !string.IsNullOrEmpty(p.TeamPosition))
+                .GroupBy(p => (p.TeamId, Lane: NormalizeLane(p.TeamPosition)))
+                .ToDictionary(g => g.Key, g => g.First());
+
+            foreach (var p in match.Participants)
+            {
+                if (string.IsNullOrEmpty(p.TeamPosition)) continue;
+                if (!champInfo.TryGetValue(p.ChampionId, out var champ)) continue;
+                var role = NormalizeLane(p.TeamPosition);
+                var opponentTeam = p.TeamId == 100 ? 200 : 100;
+                if (byTeamAndRole.TryGetValue((opponentTeam, role), out var opponent)
+                    && champInfo.TryGetValue(opponent.ChampionId, out var opponentChamp))
+                {
+                    var matchupKey = (p.ChampionId, role, opponent.ChampionId);
+                    if (!batchMatchupAggregate.TryGetValue(matchupKey, out var matchupStat))
+                    {
+                        matchupStat = new AggregatedMatchupStat
+                        {
+                            ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
+                            OpponentChampionId = opponent.ChampionId, OpponentChampionKey = opponentChamp.Key,
+                        };
+                        batchMatchupAggregate[matchupKey] = matchupStat;
+                    }
+                    matchupStat.Picks++;
+                    if (p.Win) matchupStat.Wins++;
+                }
             }
 
             batchMatchIds.Add(matchId);
@@ -322,12 +397,15 @@ public class BuildStatsCrawler
             // next crash only loses what's in memory for the current batch.
             if (batchMatchIds.Count >= PersistBatchSize)
             {
-                await FlushBatchAsync(batchAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
+                await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
                 totalFlushed += batchAggregatedCount;
                 _logger.LogInformation(
                     "Flushed batch: {BatchSize} match IDs ({Aggregated} aggregated) → DB total {Flushed}/{All} (in-memory rows: {Rows}, errors: {Errors})",
                     batchMatchIds.Count, batchAggregatedCount, totalFlushed, newMatchIds.Count, batchAggregate.Count, errors);
                 batchAggregate.Clear();
+                batchRuneAggregate.Clear();
+                batchSpellAggregate.Clear();
+                batchMatchupAggregate.Clear();
                 batchMatchIds.Clear();
                 batchAggregatedCount = 0;
             }
@@ -336,7 +414,7 @@ public class BuildStatsCrawler
         // Final flush for the tail of matches that didn't fill a full batch.
         if (batchMatchIds.Count > 0)
         {
-            await FlushBatchAsync(batchAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
+            await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
             totalFlushed += batchAggregatedCount;
             _logger.LogInformation(
                 "Flushed final batch: {BatchSize} match IDs ({Aggregated} aggregated) → DB total {Flushed}/{All}",
@@ -362,6 +440,9 @@ public class BuildStatsCrawler
     /// </summary>
     private async Task FlushBatchAsync(
         Dictionary<(int championId, string role, int itemId), AggregatedStat> batch,
+        Dictionary<(int championId, string role, int ps, int ss, int p0, int p1, int p2, int p3, int p4, int p5, int so, int sf, int sd), AggregatedRuneStat> runeBatch,
+        Dictionary<(int championId, string role, int spell1, int spell2), AggregatedSpellStat> spellBatch,
+        Dictionary<(int championId, string role, int opponentId), AggregatedMatchupStat> matchupBatch,
         List<string> batchMatchIds,
         int aggregatedCount,
         string patch,
@@ -372,21 +453,24 @@ public class BuildStatsCrawler
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // Load the subset of existing rows that could collide with this batch's keys —
-        // we only need rows whose (ChampionId, Role, ItemId) match something in the batch.
-        // For small batches this is much cheaper than loading every row for the patch.
-        var champIds = batch.Values.Select(v => v.ChampionId).Distinct().ToList();
-        var existingForPatch = await db.ItemStats
-            .Where(s => s.Patch == patch && champIds.Contains(s.ChampionId))
-            .ToListAsync(ct);
-        var byKey = existingForPatch.ToDictionary(s => (s.ChampionId, s.Role, s.ItemId));
+        var champIds = batch.Values.Select(v => v.ChampionId)
+            .Union(runeBatch.Values.Select(v => v.ChampionId))
+            .Union(spellBatch.Values.Select(v => v.ChampionId))
+            .Union(matchupBatch.Values.Select(v => v.ChampionId))
+            .Distinct().ToList();
 
         var now = DateTime.UtcNow;
+
+        // --- Item stats UPSERT (existing logic) ---
+        var existingItems = await db.ItemStats
+            .Where(s => s.Patch == patch && champIds.Contains(s.ChampionId))
+            .ToListAsync(ct);
+        var itemByKey = existingItems.ToDictionary(s => (s.ChampionId, s.Role, s.ItemId));
 
         foreach (var newStat in batch.Values)
         {
             var key = (newStat.ChampionId, newStat.Role, newStat.ItemId);
-            if (byKey.TryGetValue(key, out var existing))
+            if (itemByKey.TryGetValue(key, out var existing))
             {
                 existing.Picks += newStat.Picks;
                 existing.Wins += newStat.Wins;
@@ -407,9 +491,99 @@ public class BuildStatsCrawler
                     UpdatedAt = now,
                 };
                 db.ItemStats.Add(entity);
-                // Add to the lookup so subsequent batch keys targeting the same (champ, role, item)
-                // combination within this batch UPSERT instead of causing a unique-index violation.
-                byKey[key] = entity;
+                itemByKey[key] = entity;
+            }
+        }
+
+        // --- Rune stats UPSERT ---
+        var existingRunes = await db.RuneStats
+            .Where(s => s.Patch == patch && champIds.Contains(s.ChampionId))
+            .ToListAsync(ct);
+        var runeByKey = existingRunes.ToDictionary(s => (s.ChampionId, s.Role,
+            s.PrimaryStyle, s.SubStyle, s.Perk0, s.Perk1, s.Perk2, s.Perk3, s.Perk4, s.Perk5,
+            s.StatOffense, s.StatFlex, s.StatDefense));
+
+        foreach (var rs in runeBatch.Values)
+        {
+            var key = (rs.ChampionId, rs.Role, rs.PrimaryStyle, rs.SubStyle,
+                rs.Perk0, rs.Perk1, rs.Perk2, rs.Perk3, rs.Perk4, rs.Perk5,
+                rs.StatOffense, rs.StatFlex, rs.StatDefense);
+            if (runeByKey.TryGetValue(key, out var existing))
+            {
+                existing.Picks += rs.Picks;
+                existing.Wins += rs.Wins;
+                existing.UpdatedAt = now;
+            }
+            else
+            {
+                var entity = new RuneStatEntity
+                {
+                    Patch = patch, ChampionId = rs.ChampionId, ChampionKey = rs.ChampionKey,
+                    Role = rs.Role, PrimaryStyle = rs.PrimaryStyle, SubStyle = rs.SubStyle,
+                    Perk0 = rs.Perk0, Perk1 = rs.Perk1, Perk2 = rs.Perk2,
+                    Perk3 = rs.Perk3, Perk4 = rs.Perk4, Perk5 = rs.Perk5,
+                    StatOffense = rs.StatOffense, StatFlex = rs.StatFlex, StatDefense = rs.StatDefense,
+                    Picks = rs.Picks, Wins = rs.Wins, UpdatedAt = now,
+                };
+                db.RuneStats.Add(entity);
+                runeByKey[key] = entity;
+            }
+        }
+
+        // --- Spell stats UPSERT ---
+        var existingSpells = await db.SpellStats
+            .Where(s => s.Patch == patch && champIds.Contains(s.ChampionId))
+            .ToListAsync(ct);
+        var spellByKey = existingSpells.ToDictionary(s => (s.ChampionId, s.Role, s.Spell1Id, s.Spell2Id));
+
+        foreach (var ss in spellBatch.Values)
+        {
+            var key = (ss.ChampionId, ss.Role, ss.Spell1Id, ss.Spell2Id);
+            if (spellByKey.TryGetValue(key, out var existing))
+            {
+                existing.Picks += ss.Picks;
+                existing.Wins += ss.Wins;
+                existing.UpdatedAt = now;
+            }
+            else
+            {
+                var entity = new SpellStatEntity
+                {
+                    Patch = patch, ChampionId = ss.ChampionId, ChampionKey = ss.ChampionKey,
+                    Role = ss.Role, Spell1Id = ss.Spell1Id, Spell2Id = ss.Spell2Id,
+                    Picks = ss.Picks, Wins = ss.Wins, UpdatedAt = now,
+                };
+                db.SpellStats.Add(entity);
+                spellByKey[key] = entity;
+            }
+        }
+
+        // --- Matchup stats UPSERT ---
+        var existingMatchups = await db.MatchupStats
+            .Where(s => s.Patch == patch && champIds.Contains(s.ChampionId))
+            .ToListAsync(ct);
+        var matchupByKey = existingMatchups.ToDictionary(s => (s.ChampionId, s.Role, s.OpponentChampionId));
+
+        foreach (var ms in matchupBatch.Values)
+        {
+            var key = (ms.ChampionId, ms.Role, ms.OpponentChampionId);
+            if (matchupByKey.TryGetValue(key, out var existing))
+            {
+                existing.Picks += ms.Picks;
+                existing.Wins += ms.Wins;
+                existing.UpdatedAt = now;
+            }
+            else
+            {
+                var entity = new MatchupStatEntity
+                {
+                    Patch = patch, ChampionId = ms.ChampionId, ChampionKey = ms.ChampionKey,
+                    Role = ms.Role, OpponentChampionId = ms.OpponentChampionId,
+                    OpponentChampionKey = ms.OpponentChampionKey,
+                    Picks = ms.Picks, Wins = ms.Wins, UpdatedAt = now,
+                };
+                db.MatchupStats.Add(entity);
+                matchupByKey[key] = entity;
             }
         }
 
@@ -424,11 +598,7 @@ public class BuildStatsCrawler
             });
         }
 
-        // Bump metadata — only the aggregated count, not total fetched. This way the
-        // "matchesProcessed" number surfaced to the UI reflects real aggregation depth
-        // (skipped wrong-patch / wrong-queue matches don't inflate the display).
-        // DataVersion is stamped with the current crawler's version so a future code
-        // update with different aggregation semantics triggers an auto-rebackfill.
+        // Bump metadata.
         var dbMeta = await db.CrawlMetadata.FindAsync(new object[] { patch }, ct);
         if (dbMeta is null)
         {
@@ -556,6 +726,9 @@ public class BuildStatsCrawler
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         await db.ItemStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
+        await db.RuneStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
+        await db.SpellStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
+        await db.MatchupStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.CrawlMetadata.Where(m => m.Patch == patch).ExecuteDeleteAsync(ct);
     }
 
@@ -619,6 +792,48 @@ public class BuildStatsCrawler
         public string Role { get; set; } = string.Empty;
         public int ItemId { get; set; }
         public string ItemName { get; set; } = string.Empty;
+        public int Picks { get; set; }
+        public int Wins { get; set; }
+    }
+
+    private class AggregatedRuneStat
+    {
+        public int ChampionId { get; set; }
+        public string ChampionKey { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public int PrimaryStyle { get; set; }
+        public int SubStyle { get; set; }
+        public int Perk0 { get; set; }
+        public int Perk1 { get; set; }
+        public int Perk2 { get; set; }
+        public int Perk3 { get; set; }
+        public int Perk4 { get; set; }
+        public int Perk5 { get; set; }
+        public int StatOffense { get; set; }
+        public int StatFlex { get; set; }
+        public int StatDefense { get; set; }
+        public int Picks { get; set; }
+        public int Wins { get; set; }
+    }
+
+    private class AggregatedSpellStat
+    {
+        public int ChampionId { get; set; }
+        public string ChampionKey { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public int Spell1Id { get; set; }
+        public int Spell2Id { get; set; }
+        public int Picks { get; set; }
+        public int Wins { get; set; }
+    }
+
+    private class AggregatedMatchupStat
+    {
+        public int ChampionId { get; set; }
+        public string ChampionKey { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public int OpponentChampionId { get; set; }
+        public string OpponentChampionKey { get; set; } = string.Empty;
         public int Picks { get; set; }
         public int Wins { get; set; }
     }

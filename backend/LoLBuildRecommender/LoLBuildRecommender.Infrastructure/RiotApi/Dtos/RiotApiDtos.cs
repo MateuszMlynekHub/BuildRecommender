@@ -126,6 +126,9 @@ public class MatchParticipantDto
     [JsonPropertyName("teamPosition")]
     public string TeamPosition { get; set; } = string.Empty;
 
+    [JsonPropertyName("teamId")]
+    public int TeamId { get; set; }
+
     [JsonPropertyName("item0")] public int Item0 { get; set; }
     [JsonPropertyName("item1")] public int Item1 { get; set; }
     [JsonPropertyName("item2")] public int Item2 { get; set; }
@@ -133,6 +136,51 @@ public class MatchParticipantDto
     [JsonPropertyName("item4")] public int Item4 { get; set; }
     [JsonPropertyName("item5")] public int Item5 { get; set; }
 
+    [JsonPropertyName("summoner1Id")]
+    public int Summoner1Id { get; set; }
+
+    [JsonPropertyName("summoner2Id")]
+    public int Summoner2Id { get; set; }
+
+    [JsonPropertyName("perks")]
+    public MatchPerksDto? Perks { get; set; }
+
     [JsonPropertyName("win")]
     public bool Win { get; set; }
+}
+
+public class MatchPerksDto
+{
+    [JsonPropertyName("statPerks")]
+    public MatchStatPerksDto StatPerks { get; set; } = new();
+
+    [JsonPropertyName("styles")]
+    public List<MatchPerkStyleDto> Styles { get; set; } = [];
+}
+
+public class MatchStatPerksDto
+{
+    [JsonPropertyName("offense")]
+    public int Offense { get; set; }
+
+    [JsonPropertyName("flex")]
+    public int Flex { get; set; }
+
+    [JsonPropertyName("defense")]
+    public int Defense { get; set; }
+}
+
+public class MatchPerkStyleDto
+{
+    [JsonPropertyName("style")]
+    public int Style { get; set; }
+
+    [JsonPropertyName("selections")]
+    public List<MatchPerkSelectionDto> Selections { get; set; } = [];
+}
+
+public class MatchPerkSelectionDto
+{
+    [JsonPropertyName("perk")]
+    public int Perk { get; set; }
 }

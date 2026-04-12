@@ -21,16 +21,31 @@ export const routes: Routes = [
       ),
   },
 
-  // Team Shuffle is lazy-loaded — the component + its ~10 kB of animation
-  // styles + the champion fetch logic live in a separate JS chunk, fetched
-  // on-demand when the user first navigates to /shuffle. Cost: a one-time
-  // ~15 kB transfer the first time someone opens the shuffle page. Cached
-  // afterward via standard browser caching on the hashed filename.
+  // Team Shuffle is lazy-loaded.
   {
     path: 'shuffle',
     loadComponent: () =>
       import('./features/team-shuffle/team-shuffle.component').then(
         (m) => m.TeamShuffleComponent,
+      ),
+  },
+
+  // Champions list — browse all champions with search + role filter.
+  {
+    path: 'champions',
+    loadComponent: () =>
+      import('./features/champions/champions-list.component').then(
+        (m) => m.ChampionsListComponent,
+      ),
+  },
+
+  // Per-champion detail page — builds, abilities, stats, lore.
+  // :key is the DDragon champion key (e.g. "Aatrox", "MissFortune").
+  {
+    path: 'champion/:key',
+    loadComponent: () =>
+      import('./features/champions/champion-detail.component').then(
+        (m) => m.ChampionDetailComponent,
       ),
   },
 

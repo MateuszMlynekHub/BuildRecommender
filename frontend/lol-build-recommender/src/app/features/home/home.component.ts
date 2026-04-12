@@ -251,8 +251,8 @@ export class HomeComponent implements OnInit {
     // provides as a synthetic DOM, so meta tags correctly land in the
     // prerendered HTML.
     this.seo.updatePageMeta({
-      title: 'DraftSense — inteligentne buildy LoL w czasie rzeczywistym',
-      description: 'Wpisz swój Riot ID, a DraftSense przeanalizuje aktywną grę League of Legends i zaproponuje optymalny build — counter pod skład wroga, anti-heal, tenacity, anti-engage. Wspiera wszystkie role i serwery.',
+      title: 'DraftSense — LoL Builds & Counter Items | League of Legends',
+      description: 'Free LoL build tool. Counter items based on enemy team comp — anti-heal, tenacity, armor & MR picks. Challenger meta builds for every champion and role.',
       url: 'https://draftsense.net/',
     });
 

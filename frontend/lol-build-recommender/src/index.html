@@ -1,98 +1,120 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <head>
+    <meta charset="utf-8" />
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-  <!-- ==========================================================================
+    <!-- ==========================================================================
        PRIMARY META — what Google and social scrapers read on first crawl
        ==========================================================================
        Keep these in sync with SeoService defaults. The Angular router updates
        them per-route at runtime; this block is the static fallback for Googlebot
        first pass + social card generators that don't execute JavaScript.
        -->
-  <title>DraftSense — LoL Build Recommender & Counter Build Tool for League of Legends</title>
-  <meta name="description" content="Free LoL build recommender and counter build tool. Real-time item builds based on enemy team composition — anti-heal, tenacity, anti-engage picks. League of Legends build guide, counter items, meta builds, tier list, pro builds. ADC, Support, Mid, Jungle, Top build guides.">
-  <meta name="keywords" content="lol builds, league of legends builds, lol item build, best builds lol, lol build guide, lol items guide, lol champion builds, lol meta builds, lol build calculator, lol build optimizer, lol itemization guide, lol counter build, lol counter items, lol build vs enemy team, lol build analyzer, lol live game build, lol real time builds, lol smart builds, lol adaptive build, lol dynamic itemization, lol build recommendation tool, lol build generator, lol build assistant, lol matchup builds, best build vs tank team lol, what items vs heavy ap team lol, lol how to counter enemy team items, best items vs healing lol, anti heal items lol when to buy, lol what to build against ad team, lol build vs cc heavy team, best defensive items lol guide, lol adaptive build based on enemy team, lol item build based on matchup, zed build, zed best build, zed items, zed build vs yasuo, ahri build, ahri best build, ahri items, ahri build mid, jinx build, jinx best build adc, jinx items build, jinx build vs caitlyn, thresh build, thresh support build, thresh items, thresh build support, lol support build guide, lol adc build guide, lol jungle build guide, lol mid build guide, lol top build guide, best support items lol, best adc items lol, lol bot lane synergy, lol support adc synergy, lol duo lane builds, lol meta builds patch, lol best builds current patch, lol patch build tier list, lol item tier list, lol build tier list, best lol builds season, lol pro builds, lol high elo builds, lol challenger builds, lol pro player builds, lol builds website, lol build app, lol companion app, lol overlay builds, lol second screen app, lol build helper tool, lol in game assistant, lol stat tracker builds, lol draft analysis tool, lol team comp analyzer, lol item suggestions app, lol ai builds, lol smart item suggestions">
-  <meta name="author" content="Mateusz Młynek">
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  <meta name="googlebot" content="index, follow">
-  <meta name="theme-color" content="#010A13">
-  <meta name="color-scheme" content="dark">
-  <meta name="format-detection" content="telephone=no">
+    <title>DraftSense — LoL Build Recommender & Counter Build Tool for League of Legends</title>
+    <meta
+      name="description"
+      content="Free LoL build recommender and counter build tool. Real-time item builds based on enemy team composition — anti-heal, tenacity, anti-engage picks. League of Legends build guide, counter items, meta builds, tier list, pro builds. ADC, Support, Mid, Jungle, Top build guides."
+    />
+    <meta
+      name="keywords"
+      content="lol builds, league of legends builds, lol item build, best builds lol, lol build guide, lol items guide, lol champion builds, lol meta builds, lol build calculator, lol build optimizer, lol itemization guide, lol counter build, lol counter items, lol build vs enemy team, lol build analyzer, lol live game build, lol real time builds, lol smart builds, lol adaptive build, lol dynamic itemization, lol build recommendation tool, lol build generator, lol build assistant, lol matchup builds, best build vs tank team lol, what items vs heavy ap team lol, lol how to counter enemy team items, best items vs healing lol, anti heal items lol when to buy, lol what to build against ad team, lol build vs cc heavy team, best defensive items lol guide, lol adaptive build based on enemy team, lol item build based on matchup, zed build, zed best build, zed items, zed build vs yasuo, ahri build, ahri best build, ahri items, ahri build mid, jinx build, jinx best build adc, jinx items build, jinx build vs caitlyn, thresh build, thresh support build, thresh items, thresh build support, lol support build guide, lol adc build guide, lol jungle build guide, lol mid build guide, lol top build guide, best support items lol, best adc items lol, lol bot lane synergy, lol support adc synergy, lol duo lane builds, lol meta builds patch, lol best builds current patch, lol patch build tier list, lol item tier list, lol build tier list, best lol builds season, lol pro builds, lol high elo builds, lol challenger builds, lol pro player builds, lol builds website, lol build app, lol companion app, lol overlay builds, lol second screen app, lol build helper tool, lol in game assistant, lol stat tracker builds, lol draft analysis tool, lol team comp analyzer, lol item suggestions app, lol ai builds, lol smart item suggestions"
+    />
+    <meta name="author" content="Mateusz Młynek" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="theme-color" content="#010A13" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="format-detection" content="telephone=no" />
 
-  <!-- Canonical — prevents duplicate-content penalties when the same page is
+    <!-- Canonical — prevents duplicate-content penalties when the same page is
        reachable via www/non-www or http/https. Production Caddy redirects http
        to https and www to apex, so the canonical is always the apex https URL. -->
-  <link rel="canonical" href="https://draftsense.net/">
+    <link rel="canonical" href="https://draftsense.net/" />
 
-  <!-- hreflang alternates — the app has a runtime language switcher but
+    <!-- hreflang alternates — the app has a runtime language switcher but
        serves all 6 languages from the same URL, so every alternate points
        back to the apex. Useful mostly as a signal to Google that this site
        is available in multiple languages; real per-locale URLs would be the
        v2 goal (/en/, /pl/, …) with @angular/localize. -->
-  <link rel="alternate" hreflang="pl"        href="https://draftsense.net/">
-  <link rel="alternate" hreflang="en"        href="https://draftsense.net/">
-  <link rel="alternate" hreflang="de"        href="https://draftsense.net/">
-  <link rel="alternate" hreflang="es"        href="https://draftsense.net/">
-  <link rel="alternate" hreflang="ru"        href="https://draftsense.net/">
-  <link rel="alternate" hreflang="uk"        href="https://draftsense.net/">
-  <link rel="alternate" hreflang="x-default" href="https://draftsense.net/">
+    <link rel="alternate" hreflang="pl" href="https://draftsense.net/" />
+    <link rel="alternate" hreflang="en" href="https://draftsense.net/" />
+    <link rel="alternate" hreflang="de" href="https://draftsense.net/" />
+    <link rel="alternate" hreflang="es" href="https://draftsense.net/" />
+    <link rel="alternate" hreflang="ru" href="https://draftsense.net/" />
+    <link rel="alternate" hreflang="uk" href="https://draftsense.net/" />
+    <link rel="alternate" hreflang="x-default" href="https://draftsense.net/" />
 
-  <!-- ==========================================================================
+    <!-- ==========================================================================
        OPEN GRAPH — Facebook, LinkedIn, Discord, Slack unfurls
        ==========================================================================
        og:image should be 1200x630 PNG/JPG. Drop the file at public/og-image.png
        before launch; until then the path 404s gracefully and scrapers fall back
        to the site title + description. -->
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="DraftSense">
-  <meta property="og:title" content="DraftSense — LoL Build Recommender & Counter Build Tool">
-  <meta property="og:description" content="Free real-time LoL build recommender. Counter items vs enemy team: anti-heal, tenacity, anti-engage. Meta builds from Challenger ladder, adaptive item suggestions per matchup, pro builds for every champion and role.">
-  <meta property="og:url" content="https://draftsense.net/">
-  <meta property="og:image" content="https://draftsense.net/og-image.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="DraftSense — League of Legends build recommender">
-  <meta property="og:locale" content="en_US">
-  <meta property="og:locale:alternate" content="pl_PL">
-  <meta property="og:locale:alternate" content="de_DE">
-  <meta property="og:locale:alternate" content="es_ES">
-  <meta property="og:locale:alternate" content="ru_RU">
-  <meta property="og:locale:alternate" content="uk_UA">
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DraftSense" />
+    <meta property="og:title" content="DraftSense — LoL Build Recommender & Counter Build Tool" />
+    <meta
+      property="og:description"
+      content="Free real-time LoL build recommender. Counter items vs enemy team: anti-heal, tenacity, anti-engage. Meta builds from Challenger ladder, adaptive item suggestions per matchup, pro builds for every champion and role."
+    />
+    <meta property="og:url" content="https://draftsense.net/" />
+    <meta property="og:image" content="https://draftsense.net/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="DraftSense — League of Legends build recommender" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pl_PL" />
+    <meta property="og:locale:alternate" content="de_DE" />
+    <meta property="og:locale:alternate" content="es_ES" />
+    <meta property="og:locale:alternate" content="ru_RU" />
+    <meta property="og:locale:alternate" content="uk_UA" />
 
-  <!-- ==========================================================================
+    <!-- ==========================================================================
        TWITTER CARD — also used by X and some chat apps
        ========================================================================== -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="DraftSense — LoL Build Recommender">
-  <meta name="twitter:description" content="Free real-time LoL counter build tool. Anti-heal, tenacity, anti-engage items tailored to the enemy team. Meta builds, pro builds, tier list, live-game assistant.">
-  <meta name="twitter:image" content="https://draftsense.net/og-image.png">
-  <meta name="twitter:image:alt" content="DraftSense — League of Legends build recommender">
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DraftSense — LoL Build Recommender" />
+    <meta
+      name="twitter:description"
+      content="Free real-time LoL counter build tool. Anti-heal, tenacity, anti-engage items tailored to the enemy team. Meta builds, pro builds, tier list, live-game assistant."
+    />
+    <meta name="twitter:image" content="https://draftsense.net/og-image.png" />
+    <meta name="twitter:image:alt" content="DraftSense — League of Legends build recommender" />
 
-  <!-- ==========================================================================
+    <!-- ==========================================================================
        PERFORMANCE HINTS — resolve external origins early so the browser can
        overlap DNS + TLS handshakes with parsing. Every hint saves ~100–300 ms
        on first paint depending on the user's latency to the CDN.
        ========================================================================== -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://www.googletagmanager.com">
-  <link rel="dns-prefetch" href="https://ddragon.leagueoflegends.com">
-  <link rel="dns-prefetch" href="https://cdn.merakianalytics.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Fonts loaded via HTML <link> instead of CSS @import to eliminate
+         render-blocking chain. @import in CSS creates: HTML -> CSS -> Fonts
+         API -> .woff2 (4 hops, ~4s). <link> here starts the font fetch in
+         parallel with the main stylesheet: ~1.5s total. -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" />
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <link rel="dns-prefetch" href="https://ddragon.leagueoflegends.com" />
+    <link rel="dns-prefetch" href="https://cdn.merakianalytics.com" />
 
-  <!-- ==========================================================================
+    <!-- ==========================================================================
        ICONS + WEB APP MANIFEST
        ==========================================================================
        site.webmanifest enables "Add to Home Screen" on mobile and is required
        for the theme-color to apply to the Chrome address bar on Android.
        -->
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="apple-touch-icon" href="favicon.ico">
-  <link rel="manifest" href="site.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="manifest" href="site.webmanifest" />
 
-  <!-- ==========================================================================
+    <!-- ==========================================================================
        STRUCTURED DATA — JSON-LD SoftwareApplication schema
        ==========================================================================
        Google uses this to render a rich result card (star rating, price,
@@ -100,56 +122,56 @@
        comprehensive term list — schema.org recommends comma-separated
        keywords and Google's rich-results test validates it.
        -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "DraftSense",
-    "alternateName": ["LoL Build Recommender", "DraftSense League of Legends"],
-    "description": "Free real-time League of Legends build recommender and counter build tool. Analyzes the enemy team composition in an active game and recommends counter-builds based on healing, shields, CC, engage, poke, and true damage threat profiles. Includes meta builds from Challenger ladder, build tier list, pro player builds, adaptive itemization per matchup, role-specific guides for ADC, Support, Mid, Jungle, and Top.",
-    "url": "https://draftsense.net/",
-    "applicationCategory": "GameApplication",
-    "applicationSubCategory": "Game Assistant",
-    "operatingSystem": "Web Browser",
-    "browserRequirements": "Requires JavaScript. Modern browser (Chrome, Firefox, Edge, Safari).",
-    "inLanguage": ["pl", "en", "de", "es", "ru", "uk"],
-    "isAccessibleForFree": true,
-    "keywords": "lol builds, league of legends builds, lol item build, best builds lol, lol build guide, lol items guide, lol champion builds, lol meta builds, lol build calculator, lol build optimizer, lol itemization guide, lol counter build, lol counter items, lol build vs enemy team, lol build analyzer, lol live game build, lol real time builds, lol smart builds, lol adaptive build, lol dynamic itemization, lol build recommendation tool, lol build generator, lol build assistant, lol matchup builds, best build vs tank team lol, what items vs heavy ap team lol, lol how to counter enemy team items, best items vs healing lol, anti heal items lol when to buy, lol what to build against ad team, lol build vs cc heavy team, best defensive items lol guide, lol adaptive build based on enemy team, lol item build based on matchup, zed build, zed best build, zed items, zed build vs yasuo, ahri build, ahri best build, ahri items, ahri build mid, jinx build, jinx best build adc, jinx items build, jinx build vs caitlyn, thresh build, thresh support build, thresh items, thresh build support, lol support build guide, lol adc build guide, lol jungle build guide, lol mid build guide, lol top build guide, best support items lol, best adc items lol, lol bot lane synergy, lol support adc synergy, lol duo lane builds, lol meta builds patch, lol best builds current patch, lol patch build tier list, lol item tier list, lol build tier list, best lol builds season, lol pro builds, lol high elo builds, lol challenger builds, lol pro player builds, lol builds website, lol build app, lol companion app, lol overlay builds, lol second screen app, lol build helper tool, lol in game assistant, lol stat tracker builds, lol draft analysis tool, lol team comp analyzer, lol item suggestions app, lol ai builds, lol smart item suggestions",
-    "featureList": [
-      "Real-time enemy team composition analysis",
-      "Counter item recommendations (anti-heal, tenacity, anti-engage)",
-      "Role-specific builds (ADC, Support, Mid, Jungle, Top)",
-      "Meta builds from Challenger, Grandmaster and Master ladders",
-      "Adaptive itemization per matchup",
-      "Shield threat vs healing threat differentiation",
-      "Poke, engage, and true-damage threat profiling",
-      "Standard, Aggressive and Defensive build variants",
-      "Skill order (Q/W/E max priority) from meta data",
-      "Multi-language interface (PL, EN, DE, ES, RU, UK)"
-    ],
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "author": {
-      "@type": "Person",
-      "name": "Mateusz Młynek",
-      "url": "https://buymeacoffee.com/mateuszmlynek"
-    },
-    "about": {
-      "@type": "VideoGame",
-      "name": "League of Legends",
-      "publisher": {
-        "@type": "Organization",
-        "name": "Riot Games"
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "DraftSense",
+        "alternateName": ["LoL Build Recommender", "DraftSense League of Legends"],
+        "description": "Free real-time League of Legends build recommender and counter build tool. Analyzes the enemy team composition in an active game and recommends counter-builds based on healing, shields, CC, engage, poke, and true damage threat profiles. Includes meta builds from Challenger ladder, build tier list, pro player builds, adaptive itemization per matchup, role-specific guides for ADC, Support, Mid, Jungle, and Top.",
+        "url": "https://draftsense.net/",
+        "applicationCategory": "GameApplication",
+        "applicationSubCategory": "Game Assistant",
+        "operatingSystem": "Web Browser",
+        "browserRequirements": "Requires JavaScript. Modern browser (Chrome, Firefox, Edge, Safari).",
+        "inLanguage": ["pl", "en", "de", "es", "ru", "uk"],
+        "isAccessibleForFree": true,
+        "keywords": "lol builds, league of legends builds, lol item build, best builds lol, lol build guide, lol items guide, lol champion builds, lol meta builds, lol build calculator, lol build optimizer, lol itemization guide, lol counter build, lol counter items, lol build vs enemy team, lol build analyzer, lol live game build, lol real time builds, lol smart builds, lol adaptive build, lol dynamic itemization, lol build recommendation tool, lol build generator, lol build assistant, lol matchup builds, best build vs tank team lol, what items vs heavy ap team lol, lol how to counter enemy team items, best items vs healing lol, anti heal items lol when to buy, lol what to build against ad team, lol build vs cc heavy team, best defensive items lol guide, lol adaptive build based on enemy team, lol item build based on matchup, zed build, zed best build, zed items, zed build vs yasuo, ahri build, ahri best build, ahri items, ahri build mid, jinx build, jinx best build adc, jinx items build, jinx build vs caitlyn, thresh build, thresh support build, thresh items, thresh build support, lol support build guide, lol adc build guide, lol jungle build guide, lol mid build guide, lol top build guide, best support items lol, best adc items lol, lol bot lane synergy, lol support adc synergy, lol duo lane builds, lol meta builds patch, lol best builds current patch, lol patch build tier list, lol item tier list, lol build tier list, best lol builds season, lol pro builds, lol high elo builds, lol challenger builds, lol pro player builds, lol builds website, lol build app, lol companion app, lol overlay builds, lol second screen app, lol build helper tool, lol in game assistant, lol stat tracker builds, lol draft analysis tool, lol team comp analyzer, lol item suggestions app, lol ai builds, lol smart item suggestions",
+        "featureList": [
+          "Real-time enemy team composition analysis",
+          "Counter item recommendations (anti-heal, tenacity, anti-engage)",
+          "Role-specific builds (ADC, Support, Mid, Jungle, Top)",
+          "Meta builds from Challenger, Grandmaster and Master ladders",
+          "Adaptive itemization per matchup",
+          "Shield threat vs healing threat differentiation",
+          "Poke, engage, and true-damage threat profiling",
+          "Standard, Aggressive and Defensive build variants",
+          "Skill order (Q/W/E max priority) from meta data",
+          "Multi-language interface (PL, EN, DE, ES, RU, UK)"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Mateusz Młynek",
+          "url": "https://buymeacoffee.com/mateuszmlynek"
+        },
+        "about": {
+          "@type": "VideoGame",
+          "name": "League of Legends",
+          "publisher": {
+            "@type": "Organization",
+            "name": "Riot Games"
+          }
+        },
+        "disclaimer": "DraftSense isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends."
       }
-    },
-    "disclaimer": "DraftSense isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends."
-  }
-  </script>
+    </script>
 
-  <!-- ==========================================================================
+    <!-- ==========================================================================
        Google Analytics (gtag.js) — GA4 measurement ID G-B352Q2V3CW
        ==========================================================================
        GDPR compliance via Google Consent Mode v2:
@@ -172,73 +194,95 @@
        inline localStorage restore avoids a "denied then immediately granted"
        flicker in GA Realtime.
        -->
-  <script>
-    // Step 1: define dataLayer + gtag stub before the async GA script loads.
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-
-    // Step 2: declare ALL consent signals as denied until the user explicitly
-    // consents. This is the foundation of a GDPR-valid GA deployment.
-    gtag('consent', 'default', {
-      'ad_storage':         'denied',
-      'ad_user_data':       'denied',
-      'ad_personalization': 'denied',
-      'analytics_storage':  'denied',
-      'wait_for_update':    500
-    });
-
-    // Step 3: if the user previously made a choice (stored by ConsentService
-    // in localStorage under the key 'draftsense:consent'), restore it NOW —
-    // synchronously, before gtag.js ever fires its first page_view. This is
-    // the only way to avoid losing the initial pageview for returning users
-    // who already consented on a previous visit.
-    try {
-      var stored = JSON.parse(localStorage.getItem('draftsense:consent') || 'null');
-      if (stored && (stored.status === 'accepted' || stored.status === 'rejected')) {
-        var state = stored.status === 'accepted' ? 'granted' : 'denied';
-        gtag('consent', 'update', {
-          'ad_storage':         state,
-          'ad_user_data':       state,
-          'ad_personalization': state,
-          'analytics_storage':  state
-        });
+    <script>
+      // Step 1: define dataLayer + gtag stub before the async GA script loads.
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
       }
-    } catch (e) {
-      // localStorage blocked (private mode, 3rd-party cookie policies) — defaults
-      // stay denied, the banner will appear, user can still make a choice.
-    }
-  </script>
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-B352Q2V3CW"></script>
-  <script>
-    // Step 4: standard gtag init. If Step 3 restored 'granted' from storage, this
-    // pageview counts immediately. If not, it's buffered until either Consent
-    // Mode v2 expires the wait (500 ms) or the user clicks accept in the banner.
-    gtag('js', new Date());
-    gtag('config', 'G-B352Q2V3CW');
-  </script>
-</head>
-<body>
-  <!-- SPA root — Angular hydrates this element. Content inside is what a
+
+      // Step 2: declare ALL consent signals as denied until the user explicitly
+      // consents. This is the foundation of a GDPR-valid GA deployment.
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied',
+        wait_for_update: 500,
+      });
+
+      // Step 3: if the user previously made a choice (stored by ConsentService
+      // in localStorage under the key 'draftsense:consent'), restore it NOW —
+      // synchronously, before gtag.js ever fires its first page_view. This is
+      // the only way to avoid losing the initial pageview for returning users
+      // who already consented on a previous visit.
+      try {
+        var stored = JSON.parse(localStorage.getItem('draftsense:consent') || 'null');
+        if (stored && (stored.status === 'accepted' || stored.status === 'rejected')) {
+          var state = stored.status === 'accepted' ? 'granted' : 'denied';
+          gtag('consent', 'update', {
+            ad_storage: state,
+            ad_user_data: state,
+            ad_personalization: state,
+            analytics_storage: state,
+          });
+        }
+      } catch (e) {
+        // localStorage blocked (private mode, 3rd-party cookie policies) — defaults
+        // stay denied, the banner will appear, user can still make a choice.
+      }
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-B352Q2V3CW"></script>
+    <script>
+      // Step 4: standard gtag init. If Step 3 restored 'granted' from storage, this
+      // pageview counts immediately. If not, it's buffered until either Consent
+      // Mode v2 expires the wait (500 ms) or the user clicks accept in the banner.
+      gtag('js', new Date());
+      gtag('config', 'G-B352Q2V3CW');
+    </script>
+  </head>
+  <body>
+    <!-- SPA root — Angular hydrates this element. Content inside is what a
        JS-disabled browser (and older crawlers) sees; kept informative so bots
        that don't render JS still have a textual fallback that's keyword-rich. -->
-  <app-root>
-    <noscript>
-      <div style="padding:2rem;font-family:sans-serif;color:#F0E6D2;background:#010A13;max-width:800px;margin:0 auto;">
-        <h1 style="color:#C89B3C;font-size:2rem;">DraftSense — LoL Build Recommender</h1>
-        <p>DraftSense is a free real-time League of Legends build recommender and counter build tool. It analyzes the enemy team composition in your active game and suggests counter items: anti-heal, tenacity, anti-engage picks tailored to the matchup.</p>
-        <h2 style="color:#C89B3C;">Features</h2>
-        <ul>
-          <li>Real-time LoL build calculator based on enemy team</li>
-          <li>Meta builds from Challenger and Grandmaster ladders</li>
-          <li>Role-specific guides: ADC build guide, Support build guide, Mid build guide, Jungle build guide, Top build guide</li>
-          <li>Counter items vs healing, shields, CC, engage, poke, and true damage</li>
-          <li>Adaptive build generator per matchup</li>
-          <li>Champion builds for Zed, Ahri, Jinx, Thresh, and every other LoL champion</li>
-        </ul>
-        <p>To use the interactive build recommender, please enable JavaScript.</p>
-        <p><a href="https://buymeacoffee.com/mateuszmlynek" style="color:#C89B3C;">Support the project — Buy me a coffee</a></p>
-      </div>
-    </noscript>
-  </app-root>
-</body>
+    <app-root>
+      <noscript>
+        <div
+          style="
+            padding: 2rem;
+            font-family: sans-serif;
+            color: #f0e6d2;
+            background: #010a13;
+            max-width: 800px;
+            margin: 0 auto;
+          "
+        >
+          <h1 style="color: #c89b3c; font-size: 2rem">DraftSense — LoL Build Recommender</h1>
+          <p>
+            DraftSense is a free real-time League of Legends build recommender and counter build
+            tool. It analyzes the enemy team composition in your active game and suggests counter
+            items: anti-heal, tenacity, anti-engage picks tailored to the matchup.
+          </p>
+          <h2 style="color: #c89b3c">Features</h2>
+          <ul>
+            <li>Real-time LoL build calculator based on enemy team</li>
+            <li>Meta builds from Challenger and Grandmaster ladders</li>
+            <li>
+              Role-specific guides: ADC build guide, Support build guide, Mid build guide, Jungle
+              build guide, Top build guide
+            </li>
+            <li>Counter items vs healing, shields, CC, engage, poke, and true damage</li>
+            <li>Adaptive build generator per matchup</li>
+            <li>Champion builds for Zed, Ahri, Jinx, Thresh, and every other LoL champion</li>
+          </ul>
+          <p>To use the interactive build recommender, please enable JavaScript.</p>
+          <p>
+            <a href="https://buymeacoffee.com/mateuszmlynek" style="color: #c89b3c"
+              >Support the project — Buy me a coffee</a
+            >
+          </p>
+        </div>
+      </noscript>
+    </app-root>
+  </body>
 </html>

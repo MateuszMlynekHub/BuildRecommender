@@ -361,8 +361,8 @@ export class GameViewComponent implements OnInit {
     // so it shows up correctly in the browser tab, shares, and history. Google
     // won't rank this page but social unfurls still render OG/Twitter tags.
     this.seo.updatePageMeta({
-      title: 'Analiza aktywnej gry — DraftSense',
-      description: 'Rekomendacje itemów dopasowane do drużyny przeciwnej w Twojej aktywnej grze League of Legends.',
+      title: 'Active Game Analysis — DraftSense',
+      description: 'Real-time LoL item recommendations tailored to the enemy team in your active League of Legends game. Counter builds, anti-heal, tenacity & armor picks.',
     });
 
     // Skip everything dynamic during prerender — the static HTML stops here.

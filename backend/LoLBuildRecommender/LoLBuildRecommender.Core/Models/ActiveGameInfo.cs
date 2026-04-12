@@ -60,8 +60,27 @@ public record MatchParticipant
     /// <summary>Assigned team position: TOP / JUNGLE / MIDDLE / BOTTOM / UTILITY. May be empty for bot/unassigned games.</summary>
     public string TeamPosition { get; init; } = string.Empty;
 
-    /// <summary>Final 6 item slots (slot 0–5), plus slot 6 is trinket which we ignore.</summary>
+    /// <summary>Team ID: 100 (blue) or 200 (red). Used for matchup extraction.</summary>
+    public int TeamId { get; init; }
+
+    /// <summary>Final 6 item slots (slot 0-5), plus slot 6 is trinket which we ignore.</summary>
     public int[] Items { get; init; } = [];
+
+    /// <summary>Summoner spell IDs (Flash=4, Ignite=14, TP=12, etc.).</summary>
+    public int Summoner1Id { get; init; }
+    public int Summoner2Id { get; init; }
+
+    /// <summary>Rune tree IDs. PrimaryStyle is e.g. 8100 (Domination), SubStyle e.g. 8200 (Sorcery).</summary>
+    public int PrimaryStyle { get; init; }
+    public int SubStyle { get; init; }
+
+    /// <summary>Flat array of 6 perk IDs: 4 from primary tree + 2 from secondary tree.</summary>
+    public int[] Perks { get; init; } = [];
+
+    /// <summary>Stat shard IDs (offense, flex, defense rows).</summary>
+    public int StatOffense { get; init; }
+    public int StatFlex { get; init; }
+    public int StatDefense { get; init; }
 
     public bool Win { get; init; }
 }

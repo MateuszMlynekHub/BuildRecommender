@@ -82,4 +82,25 @@ public class DataController : ControllerBase
         var items = await _buildStats.GetCoreItemsAsync(championId, lane.ToUpperInvariant(), count);
         return Ok(items);
     }
+
+    [HttpGet("buildstats/{championId:int}/{lane}/runes")]
+    public async Task<ActionResult> GetChampionRunes(int championId, string lane, [FromQuery] int count = 5)
+    {
+        var runes = await _buildStats.GetTopRunePagesAsync(championId, lane.ToUpperInvariant(), count);
+        return Ok(runes);
+    }
+
+    [HttpGet("buildstats/{championId:int}/{lane}/spells")]
+    public async Task<ActionResult> GetChampionSpells(int championId, string lane, [FromQuery] int count = 5)
+    {
+        var spells = await _buildStats.GetTopSpellsAsync(championId, lane.ToUpperInvariant(), count);
+        return Ok(spells);
+    }
+
+    [HttpGet("buildstats/{championId:int}/{lane}/matchups")]
+    public async Task<ActionResult> GetChampionMatchups(int championId, string lane, [FromQuery] int count = 10)
+    {
+        var matchups = await _buildStats.GetMatchupsAsync(championId, lane.ToUpperInvariant(), count);
+        return Ok(matchups);
+    }
 }

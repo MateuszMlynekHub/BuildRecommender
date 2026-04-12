@@ -18,6 +18,18 @@ public interface IBuildStatsService
     Task<IReadOnlyList<ItemStat>> GetCoreItemsAsync(
         int championId, string lane, int count = 5, CancellationToken ct = default);
 
+    /// <summary>Top rune pages by pick frequency for a champion+lane on the current patch.</summary>
+    Task<IReadOnlyList<RunePage>> GetTopRunePagesAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default);
+
+    /// <summary>Top summoner spell pairs by pick frequency.</summary>
+    Task<IReadOnlyList<SpellSet>> GetTopSpellsAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default);
+
+    /// <summary>Matchup stats: win rates against each opponent champion in lane.</summary>
+    Task<IReadOnlyList<MatchupStat>> GetMatchupsAsync(
+        int championId, string lane, int count = 10, CancellationToken ct = default);
+
     /// <summary>Metadata about the last successful crawl — patch, time, sample size.</summary>
     Task<BuildStatsMetadata> GetMetadataAsync(CancellationToken ct = default);
 

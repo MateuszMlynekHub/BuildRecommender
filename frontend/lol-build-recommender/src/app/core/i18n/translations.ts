@@ -59,6 +59,7 @@ export type TranslationKey =
   | 'nav.ariaLabel'
   | 'nav.searchGame'
   | 'nav.teamShuffle'
+  | 'nav.champions'
 
   // ---- Footer ------------------------------------------------------------
   | 'footer.coffee.cta'
@@ -80,10 +81,32 @@ export type TranslationKey =
   | 'shuffle.shuffleAgain'
   | 'shuffle.deciding'
   | 'shuffle.options.randomChampions'
+  | 'shuffle.options.randomRoles'
   | 'shuffle.options.roleAppropriate'
   | 'shuffle.needMorePlayers'
   | 'shuffle.blueTeam'
   | 'shuffle.redTeam'
+
+  // ---- Champions list ----------------------------------------------------
+  | 'champions.title'
+  | 'champions.subtitle'
+  | 'champions.search'
+  | 'champions.allRoles'
+  | 'champions.noResults'
+  | 'champion.builds'
+  | 'champion.abilities'
+  | 'champion.passive'
+  | 'champion.stats'
+  | 'champion.lore'
+  | 'champion.tips.ally'
+  | 'champion.tips.enemy'
+  | 'champion.skillOrder'
+  | 'champion.popularItems'
+  | 'champion.winRate'
+  | 'champion.pickRate'
+  | 'champion.cooldown'
+  | 'champion.cost'
+  | 'champion.range'
 
   // ---- Home hero ---------------------------------------------------------
   | 'home.hero.title1'
@@ -228,6 +251,7 @@ const pl: Dict = {
   'nav.ariaLabel':  'Nawigacja główna',
   'nav.searchGame': 'Szukaj gry',
   'nav.teamShuffle': 'Losuj drużyny',
+  'nav.champions': 'Bohaterowie',
 
   'footer.coffee.cta':    'Podoba ci się narzędzie? Postaw kawę —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -246,10 +270,31 @@ const pl: Dict = {
   'shuffle.shuffleAgain':              'Losuj jeszcze raz',
   'shuffle.deciding':                  'Losuję przeznaczenia...',
   'shuffle.options.randomChampions':   'Losowe postacie',
+  'shuffle.options.randomRoles':       'Losowe role',
   'shuffle.options.roleAppropriate':   'Postacie dopasowane do roli',
   'shuffle.needMorePlayers':           'Potrzebujesz minimum 2 graczy, żeby zacząć',
   'shuffle.blueTeam':                  'Niebieska drużyna',
   'shuffle.redTeam':                   'Czerwona drużyna',
+
+  'champions.title':                   'Bohaterowie',
+  'champions.subtitle':                'Przeglądaj wszystkich bohaterów League of Legends',
+  'champions.search':                  'Szukaj bohatera...',
+  'champions.allRoles':                'Wszystkie',
+  'champions.noResults':               'Nie znaleziono bohaterów',
+  'champion.builds':                   'Buildy',
+  'champion.abilities':                'Umiejętności',
+  'champion.passive':                  'Pasywna',
+  'champion.stats':                    'Statystyki',
+  'champion.lore':                     'Historia',
+  'champion.tips.ally':                'Wskazówki',
+  'champion.tips.enemy':               'Jak grać przeciw',
+  'champion.skillOrder':               'Kolejność umiejętności',
+  'champion.popularItems':             'Popularne przedmioty',
+  'champion.winRate':                  'Wygrane',
+  'champion.pickRate':                 'Wybieralność',
+  'champion.cooldown':                 'Czas odnowienia',
+  'champion.cost':                     'Koszt',
+  'champion.range':                    'Zasięg',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -375,6 +420,7 @@ const en: Dict = {
   'nav.ariaLabel':  'Main navigation',
   'nav.searchGame': 'Search Game',
   'nav.teamShuffle': 'Team Shuffle',
+  'nav.champions': 'Champions',
 
   'footer.coffee.cta':    'Enjoying the tool? Buy me a coffee —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -393,10 +439,31 @@ const en: Dict = {
   'shuffle.shuffleAgain':              'Shuffle again',
   'shuffle.deciding':                  'Rolling fates...',
   'shuffle.options.randomChampions':   'Random champions',
+  'shuffle.options.randomRoles':       'Random roles',
   'shuffle.options.roleAppropriate':   'Role-appropriate champions',
   'shuffle.needMorePlayers':           'Enter at least 2 player names to start',
   'shuffle.blueTeam':                  'Blue Team',
   'shuffle.redTeam':                   'Red Team',
+
+  'champions.title':                   'Champions',
+  'champions.subtitle':                'Browse all League of Legends champions',
+  'champions.search':                  'Search champion...',
+  'champions.allRoles':                'All',
+  'champions.noResults':               'No champions found',
+  'champion.builds':                   'Builds',
+  'champion.abilities':                'Abilities',
+  'champion.passive':                  'Passive',
+  'champion.stats':                    'Stats',
+  'champion.lore':                     'Lore',
+  'champion.tips.ally':                'Tips',
+  'champion.tips.enemy':               'Playing against',
+  'champion.skillOrder':               'Skill order',
+  'champion.popularItems':             'Popular items',
+  'champion.winRate':                  'Win rate',
+  'champion.pickRate':                 'Pick rate',
+  'champion.cooldown':                 'Cooldown',
+  'champion.cost':                     'Cost',
+  'champion.range':                    'Range',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -522,6 +589,7 @@ const de: Dict = {
   'nav.ariaLabel':  'Hauptnavigation',
   'nav.searchGame': 'Spiel suchen',
   'nav.teamShuffle': 'Team-Shuffle',
+  'nav.champions': 'Champions',
 
   'footer.coffee.cta':    'Gefällt dir das Tool? Spendier mir einen Kaffee —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -540,10 +608,31 @@ const de: Dict = {
   'shuffle.shuffleAgain':              'Neu mischen',
   'shuffle.deciding':                  'Würfle Schicksal...',
   'shuffle.options.randomChampions':   'Zufällige Champions',
+  'shuffle.options.randomRoles':       'Zufällige Rollen',
   'shuffle.options.roleAppropriate':   'Champions passend zur Rolle',
   'shuffle.needMorePlayers':           'Mindestens 2 Spielernamen eingeben, um zu starten',
   'shuffle.blueTeam':                  'Blaues Team',
   'shuffle.redTeam':                   'Rotes Team',
+
+  'champions.title':                   'Champions',
+  'champions.subtitle':                'Alle League of Legends Champions durchsuchen',
+  'champions.search':                  'Champion suchen...',
+  'champions.allRoles':                'Alle',
+  'champions.noResults':               'Keine Champions gefunden',
+  'champion.builds':                   'Builds',
+  'champion.abilities':                'Fähigkeiten',
+  'champion.passive':                  'Passiv',
+  'champion.stats':                    'Statistiken',
+  'champion.lore':                     'Geschichte',
+  'champion.tips.ally':                'Tipps',
+  'champion.tips.enemy':               'Gegen spielen',
+  'champion.skillOrder':               'Fähigkeitsreihenfolge',
+  'champion.popularItems':             'Beliebte Items',
+  'champion.winRate':                  'Siegesrate',
+  'champion.pickRate':                 'Pickrate',
+  'champion.cooldown':                 'Abklingzeit',
+  'champion.cost':                     'Kosten',
+  'champion.range':                    'Reichweite',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -669,6 +758,7 @@ const es: Dict = {
   'nav.ariaLabel':  'Navegación principal',
   'nav.searchGame': 'Buscar partida',
   'nav.teamShuffle': 'Sorteo de equipos',
+  'nav.champions': 'Campeones',
 
   'footer.coffee.cta':    '¿Te gusta la herramienta? Invítame un café —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -687,10 +777,31 @@ const es: Dict = {
   'shuffle.shuffleAgain':              'Sortear de nuevo',
   'shuffle.deciding':                  'Lanzando los dados...',
   'shuffle.options.randomChampions':   'Campeones aleatorios',
+  'shuffle.options.randomRoles':       'Roles aleatorios',
   'shuffle.options.roleAppropriate':   'Campeones adaptados al rol',
   'shuffle.needMorePlayers':           'Introduce al menos 2 jugadores para empezar',
   'shuffle.blueTeam':                  'Equipo Azul',
   'shuffle.redTeam':                   'Equipo Rojo',
+
+  'champions.title':                   'Campeones',
+  'champions.subtitle':                'Explora todos los campeones de League of Legends',
+  'champions.search':                  'Buscar campeón...',
+  'champions.allRoles':                'Todos',
+  'champions.noResults':               'No se encontraron campeones',
+  'champion.builds':                   'Builds',
+  'champion.abilities':                'Habilidades',
+  'champion.passive':                  'Pasiva',
+  'champion.stats':                    'Estadísticas',
+  'champion.lore':                     'Historia',
+  'champion.tips.ally':                'Consejos',
+  'champion.tips.enemy':               'Jugar contra',
+  'champion.skillOrder':               'Orden de habilidades',
+  'champion.popularItems':             'Items populares',
+  'champion.winRate':                  'Victorias',
+  'champion.pickRate':                 'Selección',
+  'champion.cooldown':                 'Enfriamiento',
+  'champion.cost':                     'Coste',
+  'champion.range':                    'Alcance',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -816,6 +927,7 @@ const ru: Dict = {
   'nav.ariaLabel':  'Основная навигация',
   'nav.searchGame': 'Поиск игры',
   'nav.teamShuffle': 'Разделение команд',
+  'nav.champions': 'Чемпионы',
 
   'footer.coffee.cta':    'Нравится инструмент? Поставь кофе —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -834,10 +946,31 @@ const ru: Dict = {
   'shuffle.shuffleAgain':              'Разделить ещё раз',
   'shuffle.deciding':                  'Бросаю жребий...',
   'shuffle.options.randomChampions':   'Случайные чемпионы',
+  'shuffle.options.randomRoles':       'Случайные роли',
   'shuffle.options.roleAppropriate':   'Чемпионы под роль',
   'shuffle.needMorePlayers':           'Введи минимум 2 игрока, чтобы начать',
   'shuffle.blueTeam':                  'Синяя команда',
   'shuffle.redTeam':                   'Красная команда',
+
+  'champions.title':                   'Чемпионы',
+  'champions.subtitle':                'Все чемпионы League of Legends',
+  'champions.search':                  'Найти чемпиона...',
+  'champions.allRoles':                'Все',
+  'champions.noResults':               'Чемпионы не найдены',
+  'champion.builds':                   'Сборки',
+  'champion.abilities':                'Способности',
+  'champion.passive':                  'Пассивная',
+  'champion.stats':                    'Характеристики',
+  'champion.lore':                     'История',
+  'champion.tips.ally':                'Советы',
+  'champion.tips.enemy':               'Игра против',
+  'champion.skillOrder':               'Порядок навыков',
+  'champion.popularItems':             'Популярные предметы',
+  'champion.winRate':                  'Победы',
+  'champion.pickRate':                 'Пикрейт',
+  'champion.cooldown':                 'Перезарядка',
+  'champion.cost':                     'Стоимость',
+  'champion.range':                    'Дальность',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -963,6 +1096,7 @@ const uk: Dict = {
   'nav.ariaLabel':  'Основна навігація',
   'nav.searchGame': 'Пошук гри',
   'nav.teamShuffle': 'Розподіл команд',
+  'nav.champions': 'Чемпіони',
 
   'footer.coffee.cta':    'Подобається інструмент? Пригости кавою —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -981,10 +1115,31 @@ const uk: Dict = {
   'shuffle.shuffleAgain':              'Розподілити ще раз',
   'shuffle.deciding':                  'Кидаю жереб...',
   'shuffle.options.randomChampions':   'Випадкові чемпіони',
+  'shuffle.options.randomRoles':       'Випадкові ролі',
   'shuffle.options.roleAppropriate':   'Чемпіони за роллю',
   'shuffle.needMorePlayers':           'Введи мінімум 2 гравців, щоб почати',
   'shuffle.blueTeam':                  'Синя команда',
   'shuffle.redTeam':                   'Червона команда',
+
+  'champions.title':                   'Чемпіони',
+  'champions.subtitle':                'Усі чемпіони League of Legends',
+  'champions.search':                  'Знайти чемпіона...',
+  'champions.allRoles':                'Усі',
+  'champions.noResults':               'Чемпіонів не знайдено',
+  'champion.builds':                   'Збірки',
+  'champion.abilities':                'Здібності',
+  'champion.passive':                  'Пасивна',
+  'champion.stats':                    'Характеристики',
+  'champion.lore':                     'Історія',
+  'champion.tips.ally':                'Поради',
+  'champion.tips.enemy':               'Гра проти',
+  'champion.skillOrder':               'Порядок навичок',
+  'champion.popularItems':             'Популярні предмети',
+  'champion.winRate':                  'Перемоги',
+  'champion.pickRate':                 'Пікрейт',
+  'champion.cooldown':                 'Перезарядка',
+  'champion.cost':                     'Вартість',
+  'champion.range':                    'Дальність',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
