@@ -122,6 +122,96 @@ public class BuildStatsService : IBuildStatsService
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<TierListEntry>> GetTierListAsync(
+        string? role = null, CancellationToken ct = default)
+    {
+        var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
+        if (string.IsNullOrEmpty(patch)) return Array.Empty<TierListEntry>();
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        // Aggregate from SpellStats — each row represents one distinct spell-pair
+        // for a champion+role, so SUM(picks) across all spell combos for a champion+role
+        // ≈ total games played by that champion in that role (each game has exactly one
+        // spell pair). This is a cleaner proxy than ItemStats which has multiple rows per
+        // game (one per item in final build).
+        var query = db.SpellStats.AsNoTracking()
+            .Where(s => s.Patch == patch);
+
+        if (!string.IsNullOrEmpty(role))
+            query = query.Where(s => s.Role == role);
+
+        var rows = await query
+            .GroupBy(s => new { s.ChampionId, s.ChampionKey, s.Role })
+            .Select(g => new TierListEntry
+            {
+                ChampionId = g.Key.ChampionId,
+                ChampionKey = g.Key.ChampionKey,
+                Role = g.Key.Role,
+                Picks = g.Sum(r => r.Picks),
+                Wins = g.Sum(r => r.Wins),
+            })
+            .OrderByDescending(e => e.Picks)
+            .ToListAsync(ct);
+
+        return rows;
+    }
+
+    public async Task<IReadOnlyList<MetaShiftEntry>> GetMetaShiftAsync(CancellationToken ct = default)
+    {
+        var currentPatch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
+        if (string.IsNullOrEmpty(currentPatch)) return Array.Empty<MetaShiftEntry>();
+
+        // Compute previous patch by decrementing minor version
+        var parts = currentPatch.Split('.');
+        if (parts.Length < 2 || !int.TryParse(parts[1], out var minor))
+            return Array.Empty<MetaShiftEntry>();
+        var previousPatch = minor > 1 ? $"{parts[0]}.{minor - 1}" : currentPatch;
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        // Aggregate from SpellStats for both patches
+        var currentData = await db.SpellStats.AsNoTracking()
+            .Where(s => s.Patch == currentPatch)
+            .GroupBy(s => new { s.ChampionId, s.ChampionKey, s.Role })
+            .Select(g => new { g.Key.ChampionId, g.Key.ChampionKey, g.Key.Role,
+                Picks = g.Sum(r => r.Picks), Wins = g.Sum(r => r.Wins) })
+            .ToListAsync(ct);
+
+        var previousData = await db.SpellStats.AsNoTracking()
+            .Where(s => s.Patch == previousPatch)
+            .GroupBy(s => new { s.ChampionId, s.ChampionKey, s.Role })
+            .Select(g => new { g.Key.ChampionId, g.Key.ChampionKey, g.Key.Role,
+                Picks = g.Sum(r => r.Picks), Wins = g.Sum(r => r.Wins) })
+            .ToListAsync(ct);
+
+        var prevByKey = previousData.ToDictionary(
+            p => (p.ChampionId, p.Role),
+            p => (p.Picks, WinRate: p.Picks > 0 ? (double)p.Wins / p.Picks : 0));
+
+        var result = currentData
+            .Where(c => c.Picks >= 5) // minimum sample size
+            .Select(c =>
+            {
+                var currentWr = c.Picks > 0 ? (double)c.Wins / c.Picks : 0;
+                var prev = prevByKey.GetValueOrDefault((c.ChampionId, c.Role));
+                return new MetaShiftEntry
+                {
+                    ChampionId = c.ChampionId,
+                    ChampionKey = c.ChampionKey,
+                    Role = c.Role,
+                    CurrentPicks = c.Picks,
+                    CurrentWinRate = currentWr,
+                    PreviousPicks = prev.Picks,
+                    PreviousWinRate = prev.WinRate,
+                };
+            })
+            .OrderByDescending(e => Math.Abs(e.WinRateDelta))
+            .ToList();
+
+        return result;
+    }
+
     public async Task<BuildStatsMetadata> GetMetadataAsync(CancellationToken ct = default)
     {
         var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());

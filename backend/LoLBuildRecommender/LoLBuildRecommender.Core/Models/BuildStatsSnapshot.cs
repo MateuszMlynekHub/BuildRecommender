@@ -61,3 +61,33 @@ public class MatchupStat
     public int Wins { get; set; }
     public double WinRate => Picks == 0 ? 0 : (double)Wins / Picks;
 }
+
+/// <summary>
+/// Meta shift entry: champion win rate change between current and previous patch.
+/// </summary>
+public class MetaShiftEntry
+{
+    public int ChampionId { get; set; }
+    public string ChampionKey { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public int CurrentPicks { get; set; }
+    public double CurrentWinRate { get; set; }
+    public int PreviousPicks { get; set; }
+    public double PreviousWinRate { get; set; }
+    public double WinRateDelta => CurrentWinRate - PreviousWinRate;
+}
+
+/// <summary>
+/// Tier list entry: aggregated champion performance in a specific role on the current patch.
+/// Picks = total games observed, Wins = games won. Pick rate is computed client-side
+/// from total games in the patch.
+/// </summary>
+public class TierListEntry
+{
+    public int ChampionId { get; set; }
+    public string ChampionKey { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public int Picks { get; set; }
+    public int Wins { get; set; }
+    public double WinRate => Picks == 0 ? 0 : (double)Wins / Picks;
+}

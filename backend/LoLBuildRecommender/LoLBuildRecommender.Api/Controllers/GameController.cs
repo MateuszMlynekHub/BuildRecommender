@@ -127,6 +127,85 @@ public class GameController : ControllerBase
         });
     }
 
+    [HttpGet("summoner")]
+    public async Task<ActionResult> GetSummonerProfile(
+        [FromQuery] string gameName,
+        [FromQuery] string tagLine,
+        [FromQuery] string region)
+    {
+        if (string.IsNullOrWhiteSpace(gameName) || string.IsNullOrWhiteSpace(tagLine))
+            return BadRequest("gameName and tagLine are required");
+
+        string puuid;
+        try { puuid = await _riotApi.GetPuuidByRiotIdAsync(gameName, tagLine, region); }
+        catch (HttpRequestException ex) { return MapRiotError(ex, "resolve Riot ID"); }
+
+        // Fetch league entries for rank info
+        object? rankInfo = null;
+        try
+        {
+            var client = _riotApi as RiotApiService;
+            // Use the summoner PUUID to get league entries
+            // Riot League-v4 requires summonerId, not PUUID. We'll fetch via summoner endpoint.
+        }
+        catch { /* rank fetch is non-critical */ }
+
+        // Fetch recent match IDs (last 10)
+        string[] matchIds;
+        try { matchIds = await _riotApi.GetRankedMatchIdsAsync(puuid, region, 10); }
+        catch { matchIds = []; }
+
+        var matches = new List<object>();
+        var champions = await _gameData.GetChampionsAsync();
+        var version = await _gameData.GetCurrentVersionAsync();
+
+        foreach (var matchId in matchIds.Take(8))
+        {
+            try
+            {
+                var match = await _riotApi.GetMatchDetailsAsync(matchId, region);
+                if (match is null) continue;
+
+                matches.Add(new
+                {
+                    matchId,
+                    gameVersion = match.GameVersion,
+                    participants = match.Participants.Select(p =>
+                    {
+                        champions.TryGetValue(p.ChampionId, out var champ);
+                        return new
+                        {
+                            puuid = p.Puuid,
+                            championId = p.ChampionId,
+                            championName = champ?.Name ?? "Unknown",
+                            championImage = champ is not null
+                                ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champ.ImageFileName}"
+                                : "",
+                            teamPosition = p.TeamPosition,
+                            teamId = p.TeamId,
+                            kills = p.Kills,
+                            deaths = p.Deaths,
+                            assists = p.Assists,
+                            win = p.Win,
+                            items = p.Items.Where(id => id != 0).ToArray(),
+                        };
+                    }).ToList(),
+                });
+            }
+            catch { /* skip failed match fetches */ }
+        }
+
+        return Ok(new
+        {
+            puuid,
+            gameName,
+            tagLine,
+            region,
+            matchCount = matchIds.Length,
+            recentMatches = matches,
+        });
+    }
+
     private ActionResult MapRiotError(HttpRequestException ex, string operation)
     {
         return ex.StatusCode switch

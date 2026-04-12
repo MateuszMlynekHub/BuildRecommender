@@ -120,8 +120,23 @@ public class MatchInfoDto
 
 public class MatchParticipantDto
 {
+    [JsonPropertyName("puuid")]
+    public string Puuid { get; set; } = string.Empty;
+
     [JsonPropertyName("championId")]
     public int ChampionId { get; set; }
+
+    [JsonPropertyName("championName")]
+    public string ChampionName { get; set; } = string.Empty;
+
+    [JsonPropertyName("kills")]
+    public int Kills { get; set; }
+
+    [JsonPropertyName("deaths")]
+    public int Deaths { get; set; }
+
+    [JsonPropertyName("assists")]
+    public int Assists { get; set; }
 
     [JsonPropertyName("teamPosition")]
     public string TeamPosition { get; set; } = string.Empty;
@@ -183,4 +198,25 @@ public class MatchPerkSelectionDto
 {
     [JsonPropertyName("perk")]
     public int Perk { get; set; }
+}
+
+public class LeagueEntryFullDto
+{
+    [JsonPropertyName("queueType")]
+    public string QueueType { get; set; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("rank")]
+    public string Rank { get; set; } = string.Empty;
+
+    [JsonPropertyName("leaguePoints")]
+    public int LeaguePoints { get; set; }
+
+    [JsonPropertyName("wins")]
+    public int Wins { get; set; }
+
+    [JsonPropertyName("losses")]
+    public int Losses { get; set; }
 }

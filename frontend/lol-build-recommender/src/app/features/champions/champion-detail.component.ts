@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, PLATFORM_ID, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -10,6 +10,7 @@ import {
   DDragonChampionDetail, ChampionBuildStat, RunePage, SpellSet, MatchupStat,
 } from '../../core/models/champion-detail.model';
 import { TPipe } from '../../shared/pipes/t.pipe';
+import { PERK_ICONS } from '../../core/data/perk-icons';
 
 const SPELL_KEYS = ['Q', 'W', 'E', 'R'] as const;
 
@@ -71,6 +72,20 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
           </div>
         </div>
 
+        <!-- Role tabs -->
+        @if ((championInfo()?.positions?.length ?? 0) > 1) {
+          <div class="cd-role-tabs">
+            @for (pos of championInfo()!.positions; track pos) {
+              <button
+                type="button"
+                class="cd-role-tab"
+                [class.cd-role-tab--active]="selectedRole() === pos"
+                (click)="switchRole(pos)"
+              >{{ pos }}</button>
+            }
+          </div>
+        }
+
         <!-- Two-column layout -->
         <div class="cd-grid">
           <!-- LEFT COLUMN -->
@@ -96,7 +111,7 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
                     <div class="cd-rune__perks">
                       @for (perkId of rp.perks; track $index; let i = $index) {
                         <img class="cd-rune__perk-img"
-                          [src]="'https://ddragon.leagueoflegends.com/cdn/img/perk-images/' + perkId + '.png'"
+                          [src]="perkIconUrl(perkId)"
                           [alt]="'Perk ' + perkId"
                           width="28" height="28"
                           loading="lazy"
@@ -176,10 +191,78 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
                 }
               </div>
             </section>
+
+            <!-- Skill Order -->
+            @if (championInfo()?.skillOrder?.levels?.length === 18) {
+              @let so = championInfo()!.skillOrder!;
+              <section class="cd-section">
+                <h2 class="cd-section__title">{{ 'champion.skillOrder' | t }}</h2>
+                <div class="cd-skill-priority">
+                  Max: {{ so.priority[0] }} > {{ so.priority[1] }} > {{ so.priority[2] }}
+                </div>
+                <div class="cd-skill-table">
+                  <div class="cd-skill-row cd-skill-row--header">
+                    <span class="cd-skill-cell cd-skill-cell--label"></span>
+                    @for (lvl of levelNumbers; track lvl) {
+                      <span class="cd-skill-cell">{{ lvl }}</span>
+                    }
+                  </div>
+                  @for (key of ['Q','W','E','R']; track key) {
+                    <div class="cd-skill-row">
+                      <span class="cd-skill-cell cd-skill-cell--label" [class.cd-skill-cell--q]="key==='Q'" [class.cd-skill-cell--w]="key==='W'" [class.cd-skill-cell--e]="key==='E'" [class.cd-skill-cell--r]="key==='R'">{{ key }}</span>
+                      @for (lvl of levelNumbers; track lvl) {
+                        <span class="cd-skill-cell" [class.cd-skill-cell--active]="so.levels[lvl-1] === key" [class.cd-skill-cell--r-active]="so.levels[lvl-1] === key && key === 'R'">
+                          @if (so.levels[lvl-1] === key) { <span class="cd-skill-dot"></span> }
+                        </span>
+                      }
+                    </div>
+                  }
+                </div>
+              </section>
+            }
           </div>
 
           <!-- RIGHT COLUMN -->
           <div class="cd-col">
+
+            <!-- Core Build Path -->
+            @if (coreItems().length > 0) {
+              <section class="cd-section">
+                <h2 class="cd-section__title">Core Build</h2>
+                <div class="cd-core-build">
+                  @for (item of coreItems(); track item.itemId; let last = $last) {
+                    <div class="cd-core-item">
+                      <img [src]="gameState.getItemImageUrl(item.itemId + '.png')" [alt]="item.itemName"
+                        width="40" height="40" class="cd-core-item__img" loading="lazy" />
+                      <span class="cd-core-item__name">{{ item.itemName }}</span>
+                    </div>
+                    @if (!last) { <span class="cd-core-arrow">&#x2192;</span> }
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- Boots -->
+            @if (bootsItems().length > 0) {
+              <section class="cd-section">
+                <h2 class="cd-section__title">Boots</h2>
+                <div class="cd-items">
+                  @for (item of bootsItems(); track item.itemId) {
+                    <div class="cd-item">
+                      <img class="cd-item__img" [src]="gameState.getItemImageUrl(item.itemId + '.png')"
+                        [alt]="item.itemName" width="36" height="36" loading="lazy" />
+                      <div class="cd-item__info">
+                        <div class="cd-item__name">{{ item.itemName }}</div>
+                        <div class="cd-item__stats">
+                          <span class="cd-item__wr">{{ winRate(item) }}% WR</span>
+                          <span class="cd-item__picks">{{ item.picks }} games</span>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </section>
+            }
 
             <!-- Counters -->
               <section class="cd-section">
@@ -246,6 +329,18 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
               </div>
             </section>
 
+            <!-- Export Item Set -->
+            @if (buildStats().length > 0) {
+              <div style="text-align:center; margin-bottom:0.75rem">
+                <button type="button" class="cd-export-btn" (click)="exportItemSet()">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                  </svg>
+                  Export Item Set for LoL Client
+                </button>
+              </div>
+            }
+
             <!-- Lore -->
             <section class="cd-section">
               <h2 class="cd-section__title">{{ 'champion.lore' | t }}</h2>
@@ -305,6 +400,20 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
     }
     .cd-hero__tag { color: var(--lol-cyan); border: 1px solid rgba(10,200,185,0.3); background: rgba(10,200,185,0.06); }
     .cd-hero__pos { color: var(--lol-gold-2); border: 1px solid var(--lol-gold-5); background: rgba(200,155,60,0.06); }
+
+    /* Role tabs */
+    .cd-role-tabs {
+      display: flex; gap: 0.35rem; margin-bottom: 1.25rem;
+      padding-bottom: 1rem; border-bottom: 1px solid var(--lol-gold-5);
+    }
+    .cd-role-tab {
+      padding: 0.4rem 0.8rem; font-family: 'Cinzel', serif; font-size: 0.68rem;
+      font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--lol-text-muted); background: rgba(1,10,19,0.5);
+      border: 1px solid var(--lol-gold-5); border-radius: 2px; cursor: pointer; transition: all 0.15s;
+    }
+    .cd-role-tab:hover { color: var(--lol-gold-2); border-color: var(--lol-gold-4); }
+    .cd-role-tab--active { color: var(--lol-gold-1); background: rgba(200,155,60,0.15); border-color: var(--lol-gold-3); }
 
     /* Grid layout */
     .cd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
@@ -409,12 +518,56 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
       background: rgba(1,10,19,0.4); border-left: 2px solid var(--lol-gold-4); border-radius: 0 2px 2px 0;
     }
 
+    /* Skill Order table */
+    .cd-skill-priority {
+      font-size: 0.78rem; color: var(--lol-gold-2); font-weight: 600; margin-bottom: 0.6rem;
+      font-family: 'Cinzel', serif; letter-spacing: 0.05em;
+    }
+    .cd-skill-table { overflow-x: auto; }
+    .cd-skill-row { display: flex; gap: 1px; }
+    .cd-skill-row--header { margin-bottom: 2px; }
+    .cd-skill-cell {
+      width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+      font-size: 0.55rem; font-weight: 600; color: var(--lol-text-dim);
+      background: rgba(1,10,19,0.4); border-radius: 1px; flex-shrink: 0;
+    }
+    .cd-skill-cell--label {
+      width: 28px; font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 700;
+      background: transparent; color: var(--lol-gold-2);
+    }
+    .cd-skill-cell--q { color: #4A90E2; }
+    .cd-skill-cell--w { color: #50E3C2; }
+    .cd-skill-cell--e { color: #F5A623; }
+    .cd-skill-cell--r { color: #D0021B; }
+    .cd-skill-cell--active { background: rgba(74,144,226,0.35); }
+    .cd-skill-cell--r-active { background: rgba(208,2,27,0.3); }
+    .cd-skill-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+    /* Core Build Path */
+    .cd-core-build {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: center;
+    }
+    .cd-core-item { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+    .cd-core-item__img { border-radius: 4px; border: 2px solid var(--lol-gold-4); }
+    .cd-core-item__name { font-size: 0.62rem; color: var(--lol-gold-2); text-align: center; max-width: 70px; line-height: 1.2; }
+    .cd-core-arrow { font-size: 1.2rem; color: var(--lol-gold-3); font-weight: 700; }
+
     /* Empty state */
     .cd-empty {
       padding: 1rem; text-align: center; font-size: 0.78rem; color: var(--lol-text-dim);
       font-style: italic; background: rgba(200,155,60,0.04); border-radius: 2px;
       border: 1px dashed var(--lol-gold-5);
     }
+
+    /* Export button */
+    .cd-export-btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 1rem; font-family: 'Cinzel', serif; font-size: 0.68rem;
+      font-weight: 600; letter-spacing: 0.06em; color: var(--lol-gold-1);
+      background: rgba(200,155,60,0.12); border: 1px solid var(--lol-gold-4);
+      border-radius: 2px; cursor: pointer; transition: all 0.15s;
+    }
+    .cd-export-btn:hover { background: rgba(200,155,60,0.2); border-color: var(--lol-gold-3); }
 
     /* Lore */
     .cd-lore { font-size: 0.78rem; line-height: 1.6; color: var(--lol-text-muted); font-style: italic; }
@@ -433,8 +586,25 @@ export class ChampionDetailComponent implements OnInit {
   readonly runes = signal<RunePage[]>([]);
   readonly spells = signal<SpellSet[]>([]);
   readonly matchups = signal<MatchupStat[]>([]);
+  readonly selectedRole = signal<string>('');
   readonly loading = signal(true);
   readonly spellKeys = SPELL_KEYS;
+  readonly levelNumbers = Array.from({ length: 18 }, (_, i) => i + 1);
+
+  /** Known boots item IDs for filtering. */
+  private static readonly BOOTS_IDS = new Set([
+    3006, 3009, 3020, 3047, 3111, 3117, 3158,
+  ]);
+
+  /** Top 3 non-boots items as core build path. */
+  readonly coreItems = computed(() =>
+    this.buildStats().filter(i => !ChampionDetailComponent.BOOTS_IDS.has(i.itemId)).slice(0, 3)
+  );
+
+  /** Boots items only. */
+  readonly bootsItems = computed(() =>
+    this.buildStats().filter(i => ChampionDetailComponent.BOOTS_IDS.has(i.itemId))
+  );
 
   version(): string {
     return this.gameState.ddragonVersion();
@@ -470,22 +640,37 @@ export class ChampionDetailComponent implements OnInit {
         });
 
         if (info && info.positions.length > 0) {
-          const lane = info.positions[0];
-          this.api.getChampionBuildStats(info.id, lane).subscribe({
-            next: (stats) => this.buildStats.set(stats),
-          });
-          this.api.getChampionRunes(info.id, lane).subscribe({
-            next: (r) => this.runes.set(r),
-          });
-          this.api.getChampionSpells(info.id, lane).subscribe({
-            next: (s) => this.spells.set(s),
-          });
-          this.api.getChampionMatchups(info.id, lane).subscribe({
-            next: (m) => this.matchups.set(m),
-          });
+          this.selectedRole.set(info.positions[0]);
+          this.loadRoleData(info.id, info.positions[0]);
         }
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  switchRole(role: string): void {
+    this.selectedRole.set(role);
+    const info = this.championInfo();
+    if (info) this.loadRoleData(info.id, role);
+  }
+
+  private loadRoleData(championId: number, lane: string): void {
+    this.buildStats.set([]);
+    this.runes.set([]);
+    this.spells.set([]);
+    this.matchups.set([]);
+
+    this.api.getChampionBuildStats(championId, lane).subscribe({
+      next: (stats) => this.buildStats.set(stats),
+    });
+    this.api.getChampionRunes(championId, lane).subscribe({
+      next: (r) => this.runes.set(r),
+    });
+    this.api.getChampionSpells(championId, lane).subscribe({
+      next: (s) => this.spells.set(s),
+    });
+    this.api.getChampionMatchups(championId, lane).subscribe({
+      next: (m) => this.matchups.set(m),
     });
   }
 
@@ -510,6 +695,43 @@ export class ChampionDetailComponent implements OnInit {
     const v = this.version();
     const img = SUMMONER_SPELLS[id]?.img ?? 'SummonerFlash.png';
     return `https://ddragon.leagueoflegends.com/cdn/${v}/img/spell/${img}`;
+  }
+
+  exportItemSet(): void {
+    const d = this.detail();
+    const info = this.championInfo();
+    if (!d || !info) return;
+
+    const coreIds = this.coreItems().map(i => ({ id: String(i.itemId), count: 1 }));
+    const bootsIds = this.bootsItems().map(i => ({ id: String(i.itemId), count: 1 }));
+    const allIds = this.buildStats().map(i => ({ id: String(i.itemId), count: 1 }));
+
+    const itemSet = {
+      title: `DraftSense - ${d.name} ${this.selectedRole()}`,
+      type: 'custom',
+      map: 'any',
+      mode: 'any',
+      priority: false,
+      sortrank: 0,
+      champion: d.id,
+      blocks: [
+        { type: 'Core Build', items: coreIds },
+        ...(bootsIds.length > 0 ? [{ type: 'Boots', items: bootsIds }] : []),
+        { type: 'All Popular Items', items: allIds },
+      ],
+    };
+
+    const blob = new Blob([JSON.stringify(itemSet, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DraftSense_${d.id}_${this.selectedRole()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  perkIconUrl(perkId: number): string {
+    return PERK_ICONS[perkId] ?? '';
   }
 
   onPerkImgError(event: Event): void {

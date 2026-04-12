@@ -33,6 +33,17 @@ export interface Champion {
 
   /** File name used to build the Data Dragon portrait URL. */
   imageFileName: string;
+
+  /** Skill order from Meraki — null if no data available. */
+  skillOrder?: {
+    firstSkill: string;
+    priority: string[];
+    levels: string[];
+    qName: string;
+    wName: string;
+    eName: string;
+    rName: string;
+  };
 }
 
 /**

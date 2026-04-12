@@ -110,3 +110,23 @@ export interface MatchupStat {
   wins: number;
   winRate: number;
 }
+
+export interface MetaShiftEntry {
+  championId: number;
+  championKey: string;
+  role: string;
+  currentPicks: number;
+  currentWinRate: number;
+  previousPicks: number;
+  previousWinRate: number;
+  winRateDelta: number;
+}
+
+export interface TierListEntry {
+  championId: number;
+  championKey: string;
+  role: string;
+  picks: number;
+  wins: number;
+  winRate: number;
+}

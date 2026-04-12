@@ -13,6 +13,8 @@ import {
   RunePage,
   SpellSet,
   MatchupStat,
+  TierListEntry,
+  MetaShiftEntry,
 } from '../models/champion-detail.model';
 
 @Injectable({ providedIn: 'root' })
@@ -93,6 +95,16 @@ export class ApiService {
       `${this.baseUrl}/data/buildstats/${championId}/${lane}/spells`,
       { params: { count: count.toString() } },
     );
+  }
+
+  getMetaShift(): Observable<MetaShiftEntry[]> {
+    return this.http.get<MetaShiftEntry[]>(`${this.baseUrl}/data/metashift`);
+  }
+
+  getTierList(role?: string): Observable<TierListEntry[]> {
+    const params: Record<string, string> = {};
+    if (role) params['role'] = role;
+    return this.http.get<TierListEntry[]>(`${this.baseUrl}/data/tierlist`, { params });
   }
 
   getChampionMatchups(championId: number, lane: string, count = 10): Observable<MatchupStat[]> {

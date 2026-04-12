@@ -97,9 +97,13 @@ public class RiotApiService : IRiotApiService
             QueueId = dto.Info.QueueId,
             Participants = dto.Info.Participants.Select(p => new MatchParticipant
             {
+                Puuid = p.Puuid,
                 ChampionId = p.ChampionId,
                 TeamPosition = p.TeamPosition,
                 TeamId = p.TeamId,
+                Kills = p.Kills,
+                Deaths = p.Deaths,
+                Assists = p.Assists,
                 Items = new[] { p.Item0, p.Item1, p.Item2, p.Item3, p.Item4, p.Item5 },
                 Summoner1Id = p.Summoner1Id,
                 Summoner2Id = p.Summoner2Id,

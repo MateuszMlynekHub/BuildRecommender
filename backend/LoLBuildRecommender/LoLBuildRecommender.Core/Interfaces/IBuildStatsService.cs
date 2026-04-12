@@ -30,6 +30,12 @@ public interface IBuildStatsService
     Task<IReadOnlyList<MatchupStat>> GetMatchupsAsync(
         int championId, string lane, int count = 10, CancellationToken ct = default);
 
+    /// <summary>Tier list: aggregated win/pick rates per champion per role on current patch.</summary>
+    Task<IReadOnlyList<TierListEntry>> GetTierListAsync(string? role = null, CancellationToken ct = default);
+
+    /// <summary>Meta shift: champions with biggest win rate changes between current and previous patch.</summary>
+    Task<IReadOnlyList<MetaShiftEntry>> GetMetaShiftAsync(CancellationToken ct = default);
+
     /// <summary>Metadata about the last successful crawl — patch, time, sample size.</summary>
     Task<BuildStatsMetadata> GetMetadataAsync(CancellationToken ct = default);
 

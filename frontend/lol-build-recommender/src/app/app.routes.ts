@@ -40,12 +40,59 @@ export const routes: Routes = [
   },
 
   // Per-champion detail page — builds, abilities, stats, lore.
-  // :key is the DDragon champion key (e.g. "Aatrox", "MissFortune").
   {
     path: 'champion/:key',
     loadComponent: () =>
       import('./features/champions/champion-detail.component').then(
         (m) => m.ChampionDetailComponent,
+      ),
+  },
+
+  // Draft Advisor — champion select simulator with counter-pick suggestions.
+  {
+    path: 'draft',
+    loadComponent: () =>
+      import('./features/draft/draft-advisor.component').then(
+        (m) => m.DraftAdvisorComponent,
+      ),
+  },
+
+  // Tier list — champion rankings by win rate per role.
+  {
+    path: 'tier-list',
+    loadComponent: () =>
+      import('./features/tier-list/tier-list.component').then(
+        (m) => m.TierListComponent,
+      ),
+  },
+
+  // Summoner profile — player lookup with match history.
+  {
+    path: 'summoner/:region/:name',
+    loadComponent: () =>
+      import('./features/summoner/summoner-profile.component').then(
+        (m) => m.SummonerProfileComponent,
+      ),
+  },
+
+  // Guides — static SEO content pages.
+  {
+    path: 'guide',
+    loadComponent: () =>
+      import('./features/guides/guide.component').then(m => m.GuideComponent),
+  },
+  {
+    path: 'guide/:slug',
+    loadComponent: () =>
+      import('./features/guides/guide.component').then(m => m.GuideComponent),
+  },
+
+  // Meta Shift — patch win rate change tracker.
+  {
+    path: 'meta',
+    loadComponent: () =>
+      import('./features/meta-shift/meta-shift.component').then(
+        (m) => m.MetaShiftComponent,
       ),
   },
 

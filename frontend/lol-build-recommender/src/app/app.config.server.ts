@@ -15,6 +15,8 @@ import { appConfig } from './app.config';
  */
 const serverRoutes: ServerRoute[] = [
   { path: 'champion/:key', renderMode: RenderMode.Client },
+  { path: 'guide/:slug', renderMode: RenderMode.Client },
+  { path: 'summoner/:region/:name', renderMode: RenderMode.Client },
   { path: '**', renderMode: RenderMode.Prerender },
 ];
 

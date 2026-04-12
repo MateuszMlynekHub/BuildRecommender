@@ -55,6 +55,7 @@ public record MatchDetails
 
 public record MatchParticipant
 {
+    public string Puuid { get; init; } = string.Empty;
     public int ChampionId { get; init; }
 
     /// <summary>Assigned team position: TOP / JUNGLE / MIDDLE / BOTTOM / UTILITY. May be empty for bot/unassigned games.</summary>
@@ -62,6 +63,10 @@ public record MatchParticipant
 
     /// <summary>Team ID: 100 (blue) or 200 (red). Used for matchup extraction.</summary>
     public int TeamId { get; init; }
+
+    public int Kills { get; init; }
+    public int Deaths { get; init; }
+    public int Assists { get; init; }
 
     /// <summary>Final 6 item slots (slot 0-5), plus slot 6 is trinket which we ignore.</summary>
     public int[] Items { get; init; } = [];

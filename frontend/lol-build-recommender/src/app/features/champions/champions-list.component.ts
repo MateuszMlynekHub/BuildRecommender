@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { GameStateService } from '../../core/services/game-state.service';
 import { SeoService } from '../../core/services/seo.service';
+import { FavoritesService } from '../../core/services/favorites.service';
 import { Champion, LaneRole, LANE_ORDER } from '../../core/models/champion.model';
 import { TPipe } from '../../shared/pipes/t.pipe';
 
@@ -101,6 +102,10 @@ import { TPipe } from '../../shared/pipes/t.pipe';
               class="champ-card"
               [routerLink]="['/champion', champ.key]"
             >
+              <button class="champ-card__fav" (click)="toggleFav($event, champ.id)"
+                [class.champ-card__fav--active]="favorites.isFavorite(champ.id)">
+                &#9733;
+              </button>
               <img
                 class="champ-card__img"
                 [src]="gameState.getChampionImageUrl(champ.imageFileName)"
@@ -239,7 +244,17 @@ import { TPipe } from '../../shared/pipes/t.pipe';
       }
     }
 
+    .champ-card__fav {
+      position: absolute; top: 0.2rem; right: 0.2rem; z-index: 1;
+      background: transparent; border: none; cursor: pointer;
+      font-size: 0.85rem; color: var(--lol-gold-5); transition: color 0.15s;
+      line-height: 1; padding: 0;
+    }
+    .champ-card__fav:hover { color: var(--lol-gold-3); }
+    .champ-card__fav--active { color: var(--lol-gold-3); }
+
     .champ-card {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -301,6 +316,7 @@ export class ChampionsListComponent implements OnInit {
   private api = inject(ApiService);
   private seo = inject(SeoService);
   readonly gameState = inject(GameStateService);
+  readonly favorites = inject(FavoritesService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly roles: readonly LaneRole[] = LANE_ORDER;
@@ -342,6 +358,12 @@ export class ChampionsListComponent implements OnInit {
         this.allChampions.set(champs.sort((a, b) => a.name.localeCompare(b.name)));
       },
     });
+  }
+
+  toggleFav(event: Event, id: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.favorites.toggle(id);
   }
 
   roleName(role: LaneRole): string {

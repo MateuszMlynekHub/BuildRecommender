@@ -60,6 +60,9 @@ export type TranslationKey =
   | 'nav.searchGame'
   | 'nav.teamShuffle'
   | 'nav.champions'
+  | 'nav.tierList'
+  | 'nav.draft'
+  | 'nav.meta'
 
   // ---- Footer ------------------------------------------------------------
   | 'footer.coffee.cta'
@@ -252,6 +255,9 @@ const pl: Dict = {
   'nav.searchGame': 'Szukaj gry',
   'nav.teamShuffle': 'Losuj drużyny',
   'nav.champions': 'Bohaterowie',
+  'nav.tierList': 'Tier Lista',
+  'nav.draft': 'Draft',
+  'nav.meta': 'Meta',
 
   'footer.coffee.cta':    'Podoba ci się narzędzie? Postaw kawę —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -421,6 +427,9 @@ const en: Dict = {
   'nav.searchGame': 'Search Game',
   'nav.teamShuffle': 'Team Shuffle',
   'nav.champions': 'Champions',
+  'nav.tierList': 'Tier List',
+  'nav.draft': 'Draft',
+  'nav.meta': 'Meta',
 
   'footer.coffee.cta':    'Enjoying the tool? Buy me a coffee —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -590,6 +599,9 @@ const de: Dict = {
   'nav.searchGame': 'Spiel suchen',
   'nav.teamShuffle': 'Team-Shuffle',
   'nav.champions': 'Champions',
+  'nav.tierList': 'Tier List',
+  'nav.draft': 'Draft',
+  'nav.meta': 'Meta',
 
   'footer.coffee.cta':    'Gefällt dir das Tool? Spendier mir einen Kaffee —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -759,6 +771,9 @@ const es: Dict = {
   'nav.searchGame': 'Buscar partida',
   'nav.teamShuffle': 'Sorteo de equipos',
   'nav.champions': 'Campeones',
+  'nav.tierList': 'Tier List',
+  'nav.draft': 'Draft',
+  'nav.meta': 'Meta',
 
   'footer.coffee.cta':    '¿Te gusta la herramienta? Invítame un café —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -928,6 +943,9 @@ const ru: Dict = {
   'nav.searchGame': 'Поиск игры',
   'nav.teamShuffle': 'Разделение команд',
   'nav.champions': 'Чемпионы',
+  'nav.tierList': 'Тир лист',
+  'nav.draft': 'Драфт',
+  'nav.meta': 'Мета',
 
   'footer.coffee.cta':    'Нравится инструмент? Поставь кофе —',
   'footer.coffee.button': 'Buy me a coffee',
@@ -1097,6 +1115,9 @@ const uk: Dict = {
   'nav.searchGame': 'Пошук гри',
   'nav.teamShuffle': 'Розподіл команд',
   'nav.champions': 'Чемпіони',
+  'nav.tierList': 'Тір ліст',
+  'nav.draft': 'Драфт',
+  'nav.meta': 'Мета',
 
   'footer.coffee.cta':    'Подобається інструмент? Пригости кавою —',
   'footer.coffee.button': 'Buy me a coffee',

@@ -83,6 +83,20 @@ public class DataController : ControllerBase
         return Ok(items);
     }
 
+    [HttpGet("tierlist")]
+    public async Task<ActionResult> GetTierList([FromQuery] string? role = null)
+    {
+        var entries = await _buildStats.GetTierListAsync(role?.ToUpperInvariant());
+        return Ok(entries);
+    }
+
+    [HttpGet("metashift")]
+    public async Task<ActionResult> GetMetaShift()
+    {
+        var entries = await _buildStats.GetMetaShiftAsync();
+        return Ok(entries);
+    }
+
     [HttpGet("buildstats/{championId:int}/{lane}/runes")]
     public async Task<ActionResult> GetChampionRunes(int championId, string lane, [FromQuery] int count = 5)
     {
