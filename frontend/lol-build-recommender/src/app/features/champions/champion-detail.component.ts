@@ -10,7 +10,7 @@ import {
   DDragonChampionDetail, ChampionBuildStat, RunePage, SpellSet, MatchupStat,
 } from '../../core/models/champion-detail.model';
 import { TPipe } from '../../shared/pipes/t.pipe';
-import { PERK_ICONS } from '../../core/data/perk-icons';
+import { PERK_ICONS } from '../../core/perk-icons';
 
 const SPELL_KEYS = ['Q', 'W', 'E', 'R'] as const;
 
