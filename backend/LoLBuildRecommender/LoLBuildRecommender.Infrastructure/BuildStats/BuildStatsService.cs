@@ -175,24 +175,44 @@ public class BuildStatsService : IBuildStatsService
         // ≈ total games played by that champion in that role (each game has exactly one
         // spell pair). This is a cleaner proxy than ItemStats which has multiple rows per
         // game (one per item in final build).
-        var query = db.SpellStats.AsNoTracking()
+        var baseQuery = db.SpellStats.AsNoTracking()
             .Where(s => s.Patch == patch);
 
-        if (!string.IsNullOrEmpty(role))
-            query = query.Where(s => s.Role == role);
+        List<TierListEntry> rows;
 
-        var rows = await query
-            .GroupBy(s => new { s.ChampionId, s.ChampionKey, s.Role })
-            .Select(g => new TierListEntry
-            {
-                ChampionId = g.Key.ChampionId,
-                ChampionKey = g.Key.ChampionKey,
-                Role = g.Key.Role,
-                Picks = g.Sum(r => r.Picks),
-                Wins = g.Sum(r => r.Wins),
-            })
-            .OrderByDescending(e => e.Picks)
-            .ToListAsync(ct);
+        if (!string.IsNullOrEmpty(role))
+        {
+            // Specific role — group by champion+role (one entry per champion)
+            rows = await baseQuery
+                .Where(s => s.Role == role)
+                .GroupBy(s => new { s.ChampionId, s.ChampionKey, s.Role })
+                .Select(g => new TierListEntry
+                {
+                    ChampionId = g.Key.ChampionId,
+                    ChampionKey = g.Key.ChampionKey,
+                    Role = g.Key.Role,
+                    Picks = g.Sum(r => r.Picks),
+                    Wins = g.Sum(r => r.Wins),
+                })
+                .OrderByDescending(e => e.Picks)
+                .ToListAsync(ct);
+        }
+        else
+        {
+            // ALL roles — sum across all roles per champion (one entry per champion)
+            rows = await baseQuery
+                .GroupBy(s => new { s.ChampionId, s.ChampionKey })
+                .Select(g => new TierListEntry
+                {
+                    ChampionId = g.Key.ChampionId,
+                    ChampionKey = g.Key.ChampionKey,
+                    Role = "ALL",
+                    Picks = g.Sum(r => r.Picks),
+                    Wins = g.Sum(r => r.Wins),
+                })
+                .OrderByDescending(e => e.Picks)
+                .ToListAsync(ct);
+        }
 
         return rows;
     }
