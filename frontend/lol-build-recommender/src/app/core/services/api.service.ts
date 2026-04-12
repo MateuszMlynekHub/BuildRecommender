@@ -15,6 +15,8 @@ import {
   MatchupStat,
   TierListEntry,
   MetaShiftEntry,
+  BuildOrderEntry,
+  SkillOrderEntry,
 } from '../models/champion-detail.model';
 
 @Injectable({ providedIn: 'root' })
@@ -105,6 +107,20 @@ export class ApiService {
     const params: Record<string, string> = {};
     if (role) params['role'] = role;
     return this.http.get<TierListEntry[]>(`${this.baseUrl}/data/tierlist`, { params });
+  }
+
+  getChampionBuildOrders(championId: number, lane: string, count = 5): Observable<BuildOrderEntry[]> {
+    return this.http.get<BuildOrderEntry[]>(
+      `${this.baseUrl}/data/buildstats/${championId}/${lane}/buildorder`,
+      { params: { count: count.toString() } },
+    );
+  }
+
+  getChampionSkillOrders(championId: number, lane: string, count = 5): Observable<SkillOrderEntry[]> {
+    return this.http.get<SkillOrderEntry[]>(
+      `${this.baseUrl}/data/buildstats/${championId}/${lane}/skillorder`,
+      { params: { count: count.toString() } },
+    );
   }
 
   getChampionMatchups(championId: number, lane: string, count = 10): Observable<MatchupStat[]> {

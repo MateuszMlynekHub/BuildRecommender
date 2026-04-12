@@ -173,6 +173,34 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ""IX_MatchupStats_Patch_ChampionId_Role""
         ON ""MatchupStats"" (""Patch"", ""ChampionId"", ""Role"")");
 
+    // --- BuildOrderStats table (added in DataVersion 4) ---
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE TABLE IF NOT EXISTS ""BuildOrderStats"" (
+            ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_BuildOrderStats"" PRIMARY KEY AUTOINCREMENT,
+            ""Patch"" TEXT NOT NULL, ""ChampionId"" INTEGER NOT NULL,
+            ""ChampionKey"" TEXT NOT NULL, ""Role"" TEXT NOT NULL,
+            ""Item1Id"" INTEGER NOT NULL, ""Item2Id"" INTEGER NOT NULL, ""Item3Id"" INTEGER NOT NULL,
+            ""Picks"" INTEGER NOT NULL, ""Wins"" INTEGER NOT NULL,
+            ""UpdatedAt"" TEXT NOT NULL
+        )");
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE INDEX IF NOT EXISTS ""IX_BuildOrderStats_Patch_ChampionId_Role""
+        ON ""BuildOrderStats"" (""Patch"", ""ChampionId"", ""Role"")");
+
+    // --- SkillOrderStats table (added in DataVersion 4) ---
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE TABLE IF NOT EXISTS ""SkillOrderStats"" (
+            ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_SkillOrderStats"" PRIMARY KEY AUTOINCREMENT,
+            ""Patch"" TEXT NOT NULL, ""ChampionId"" INTEGER NOT NULL,
+            ""ChampionKey"" TEXT NOT NULL, ""Role"" TEXT NOT NULL,
+            ""EarlySkillSequence"" TEXT NOT NULL,
+            ""Picks"" INTEGER NOT NULL, ""Wins"" INTEGER NOT NULL,
+            ""UpdatedAt"" TEXT NOT NULL
+        )");
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE INDEX IF NOT EXISTS ""IX_SkillOrderStats_Patch_ChampionId_Role""
+        ON ""SkillOrderStats"" (""Patch"", ""ChampionId"", ""Role"")");
+
     // Forward-compatible ALTER — add DataVersion column to CrawlMetadata if absent.
     // SQLite doesn't support IF NOT EXISTS on ALTER TABLE ADD COLUMN, so we check
     // the column's presence via pragma_table_info first. Pre-checking (instead of

@@ -122,6 +122,22 @@ export interface MetaShiftEntry {
   winRateDelta: number;
 }
 
+export interface BuildOrderEntry {
+  item1Id: number;
+  item2Id: number;
+  item3Id: number;
+  picks: number;
+  wins: number;
+  winRate: number;
+}
+
+export interface SkillOrderEntry {
+  earlySkillSequence: string;
+  picks: number;
+  wins: number;
+  winRate: number;
+}
+
 export interface TierListEntry {
   championId: number;
   championKey: string;

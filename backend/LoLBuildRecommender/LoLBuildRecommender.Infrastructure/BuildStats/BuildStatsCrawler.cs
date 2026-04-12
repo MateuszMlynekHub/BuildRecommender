@@ -50,6 +50,8 @@ public class BuildStatsCrawler
     ///   1 — initial release (no aliases)
     ///   2 — added Muramana→Manamune / Seraph's→Archangel's / Fimbulwinter→Winter's alias map
     ///   3 — expanded crawler to collect runes, summoner spells, and matchup data
+    ///   3+ — build order + skill order tables added incrementally (no wipe needed,
+    ///         new tables created by DDL in Program.cs, populated from new matches only)
     /// </summary>
     public const int CurrentDataVersion = 3;
 
@@ -66,6 +68,12 @@ public class BuildStatsCrawler
         [3040] = 3003,  // Seraph's Embrace → Archangel's Staff
         [3121] = 3119,  // Fimbulwinter → Winter's Approach
     };
+
+    /// <summary>Boots item IDs — excluded from core build path tracking.</summary>
+    private static readonly HashSet<int> BootsItemIds = [3006, 3009, 3020, 3047, 3111, 3117, 3158];
+
+    /// <summary>Skill slot → letter mapping (Riot uses 1-4 for Q/W/E/R).</summary>
+    private static string SkillSlotToLetter(int slot) => slot switch { 1 => "Q", 2 => "W", 3 => "E", 4 => "R", _ => "?" };
 
     public BuildStatsCrawler(
         IRiotApiService riot,
@@ -217,14 +225,16 @@ public class BuildStatsCrawler
                 .Select(m => m.MatchId)
                 .ToListAsync(ct);
 
-            newMatchIds = windowIds
-                .Except(alreadyProcessed, StringComparer.Ordinal)
-                .Take(_options.MaxTotalMatches)
+            var filtered = windowIds.Except(alreadyProcessed, StringComparer.Ordinal);
+            newMatchIds = (_options.MaxTotalMatches > 0
+                ? filtered.Take(_options.MaxTotalMatches)
+                : filtered)
                 .ToHashSet(StringComparer.Ordinal);
 
             _logger.LogInformation(
-                "{New} new matches to fetch ({Already} already in ProcessedMatches, capped at {Cap})",
-                newMatchIds.Count, alreadyProcessed.Count, _options.MaxTotalMatches);
+                "{New} new matches to fetch ({Already} already in ProcessedMatches, cap={Cap})",
+                newMatchIds.Count, alreadyProcessed.Count,
+                _options.MaxTotalMatches > 0 ? _options.MaxTotalMatches : "unlimited");
         }
 
         if (newMatchIds.Count == 0)
@@ -242,6 +252,8 @@ public class BuildStatsCrawler
         var batchRuneAggregate = new Dictionary<(int championId, string role, int ps, int ss, int p0, int p1, int p2, int p3, int p4, int p5, int so, int sf, int sd), AggregatedRuneStat>();
         var batchSpellAggregate = new Dictionary<(int championId, string role, int spell1, int spell2), AggregatedSpellStat>();
         var batchMatchupAggregate = new Dictionary<(int championId, string role, int opponentId), AggregatedMatchupStat>();
+        var batchBuildOrderAggregate = new Dictionary<(int championId, string role, int item1, int item2, int item3), AggregatedBuildOrderStat>();
+        var batchSkillOrderAggregate = new Dictionary<(int championId, string role, string earlySequence), AggregatedSkillOrderStat>();
         var batchMatchIds = new List<string>();
         var batchAggregatedCount = 0;  // matches in the current batch that contributed to ItemStats
         var totalProcessed = 0;
@@ -389,15 +401,90 @@ public class BuildStatsCrawler
                 }
             }
 
+            // --- Build order: extract top 3 non-boots completed items per participant ---
+            foreach (var p in match.Participants)
+            {
+                if (string.IsNullOrEmpty(p.TeamPosition)) continue;
+                if (!champInfo.TryGetValue(p.ChampionId, out var champ)) continue;
+                var role = NormalizeLane(p.TeamPosition);
+
+                var coreItems = p.Items
+                    .Where(id => id != 0)
+                    .Select(id => ItemIdAliases.GetValueOrDefault(id, id))
+                    .Where(id => !BootsItemIds.Contains(id) && itemInfo.ContainsKey(id))
+                    .Distinct()
+                    .Take(3)
+                    .ToArray();
+
+                if (coreItems.Length == 3)
+                {
+                    var boKey = (p.ChampionId, role, coreItems[0], coreItems[1], coreItems[2]);
+                    if (!batchBuildOrderAggregate.TryGetValue(boKey, out var boStat))
+                    {
+                        boStat = new AggregatedBuildOrderStat
+                        {
+                            ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
+                            Item1Id = coreItems[0], Item2Id = coreItems[1], Item3Id = coreItems[2],
+                        };
+                        batchBuildOrderAggregate[boKey] = boStat;
+                    }
+                    boStat.Picks++;
+                    if (p.Win) boStat.Wins++;
+                }
+            }
+
+            // --- Skill order from timeline (1 extra API call per match) ---
+            try
+            {
+                var skillEvents = await _riot.GetEarlySkillOrderAsync(matchId, _options.Region, ct);
+                await ThrottleAsync(ct);
+
+                // Group by participantId (1-indexed in Riot API)
+                var byParticipant = skillEvents.GroupBy(e => e.participantId);
+                for (var pidx = 0; pidx < match.Participants.Count; pidx++)
+                {
+                    var p = match.Participants[pidx];
+                    if (string.IsNullOrEmpty(p.TeamPosition)) continue;
+                    if (!champInfo.TryGetValue(p.ChampionId, out var champ)) continue;
+                    var role = NormalizeLane(p.TeamPosition);
+
+                    // Riot participantId is 1-indexed (participant 0 → id 1)
+                    var riotPid = pidx + 1;
+                    var skills = byParticipant.FirstOrDefault(g => g.Key == riotPid)?
+                        .Select(e => SkillSlotToLetter(e.skillSlot))
+                        .Take(3)
+                        .ToArray();
+
+                    if (skills is { Length: 3 })
+                    {
+                        var seq = string.Join(",", skills);
+                        var soKey = (p.ChampionId, role, seq);
+                        if (!batchSkillOrderAggregate.TryGetValue(soKey, out var soStat))
+                        {
+                            soStat = new AggregatedSkillOrderStat
+                            {
+                                ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
+                                EarlySkillSequence = seq,
+                            };
+                            batchSkillOrderAggregate[soKey] = soStat;
+                        }
+                        soStat.Picks++;
+                        if (p.Win) soStat.Wins++;
+                    }
+                }
+            }
+            catch
+            {
+                // Timeline fetch failed — non-critical, skill order data just won't be collected for this match
+            }
+
             batchMatchIds.Add(matchId);
             batchAggregatedCount++;
             totalProcessed++;
 
-            // Flush as soon as batch is full — progress visible in the DB and
-            // next crash only loses what's in memory for the current batch.
             if (batchMatchIds.Count >= PersistBatchSize)
             {
-                await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
+                await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
                 totalFlushed += batchAggregatedCount;
                 _logger.LogInformation(
                     "Flushed batch: {BatchSize} match IDs ({Aggregated} aggregated) → DB total {Flushed}/{All} (in-memory rows: {Rows}, errors: {Errors})",
@@ -406,6 +493,8 @@ public class BuildStatsCrawler
                 batchRuneAggregate.Clear();
                 batchSpellAggregate.Clear();
                 batchMatchupAggregate.Clear();
+                batchBuildOrderAggregate.Clear();
+                batchSkillOrderAggregate.Clear();
                 batchMatchIds.Clear();
                 batchAggregatedCount = 0;
             }
@@ -414,7 +503,7 @@ public class BuildStatsCrawler
         // Final flush for the tail of matches that didn't fill a full batch.
         if (batchMatchIds.Count > 0)
         {
-            await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
+            await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
             totalFlushed += batchAggregatedCount;
             _logger.LogInformation(
                 "Flushed final batch: {BatchSize} match IDs ({Aggregated} aggregated) → DB total {Flushed}/{All}",
@@ -443,6 +532,8 @@ public class BuildStatsCrawler
         Dictionary<(int championId, string role, int ps, int ss, int p0, int p1, int p2, int p3, int p4, int p5, int so, int sf, int sd), AggregatedRuneStat> runeBatch,
         Dictionary<(int championId, string role, int spell1, int spell2), AggregatedSpellStat> spellBatch,
         Dictionary<(int championId, string role, int opponentId), AggregatedMatchupStat> matchupBatch,
+        Dictionary<(int championId, string role, int item1, int item2, int item3), AggregatedBuildOrderStat> buildOrderBatch,
+        Dictionary<(int championId, string role, string earlySequence), AggregatedSkillOrderStat> skillOrderBatch,
         List<string> batchMatchIds,
         int aggregatedCount,
         string patch,
@@ -457,6 +548,8 @@ public class BuildStatsCrawler
             .Union(runeBatch.Values.Select(v => v.ChampionId))
             .Union(spellBatch.Values.Select(v => v.ChampionId))
             .Union(matchupBatch.Values.Select(v => v.ChampionId))
+            .Union(buildOrderBatch.Values.Select(v => v.ChampionId))
+            .Union(skillOrderBatch.Values.Select(v => v.ChampionId))
             .Distinct().ToList();
 
         var now = DateTime.UtcNow;
@@ -584,6 +677,62 @@ public class BuildStatsCrawler
                 };
                 db.MatchupStats.Add(entity);
                 matchupByKey[key] = entity;
+            }
+        }
+
+        // --- Build order UPSERT ---
+        var existingBo = await db.BuildOrderStats
+            .Where(s => s.Patch == patch && champIds.Contains(s.ChampionId))
+            .ToListAsync(ct);
+        var boByKey = existingBo.ToDictionary(s => (s.ChampionId, s.Role, s.Item1Id, s.Item2Id, s.Item3Id));
+
+        foreach (var bs in buildOrderBatch.Values)
+        {
+            var key = (bs.ChampionId, bs.Role, bs.Item1Id, bs.Item2Id, bs.Item3Id);
+            if (boByKey.TryGetValue(key, out var existing))
+            {
+                existing.Picks += bs.Picks;
+                existing.Wins += bs.Wins;
+                existing.UpdatedAt = now;
+            }
+            else
+            {
+                var entity = new BuildOrderStatEntity
+                {
+                    Patch = patch, ChampionId = bs.ChampionId, ChampionKey = bs.ChampionKey,
+                    Role = bs.Role, Item1Id = bs.Item1Id, Item2Id = bs.Item2Id, Item3Id = bs.Item3Id,
+                    Picks = bs.Picks, Wins = bs.Wins, UpdatedAt = now,
+                };
+                db.BuildOrderStats.Add(entity);
+                boByKey[key] = entity;
+            }
+        }
+
+        // --- Skill order UPSERT ---
+        var existingSo = await db.SkillOrderStats
+            .Where(s => s.Patch == patch && champIds.Contains(s.ChampionId))
+            .ToListAsync(ct);
+        var soByKey = existingSo.ToDictionary(s => (s.ChampionId, s.Role, s.EarlySkillSequence));
+
+        foreach (var ss in skillOrderBatch.Values)
+        {
+            var key = (ss.ChampionId, ss.Role, ss.EarlySkillSequence);
+            if (soByKey.TryGetValue(key, out var existing))
+            {
+                existing.Picks += ss.Picks;
+                existing.Wins += ss.Wins;
+                existing.UpdatedAt = now;
+            }
+            else
+            {
+                var entity = new SkillOrderStatEntity
+                {
+                    Patch = patch, ChampionId = ss.ChampionId, ChampionKey = ss.ChampionKey,
+                    Role = ss.Role, EarlySkillSequence = ss.EarlySkillSequence,
+                    Picks = ss.Picks, Wins = ss.Wins, UpdatedAt = now,
+                };
+                db.SkillOrderStats.Add(entity);
+                soByKey[key] = entity;
             }
         }
 
@@ -729,6 +878,8 @@ public class BuildStatsCrawler
         await db.RuneStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.SpellStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.MatchupStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
+        await db.BuildOrderStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
+        await db.SkillOrderStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.CrawlMetadata.Where(m => m.Patch == patch).ExecuteDeleteAsync(ct);
     }
 
@@ -834,6 +985,28 @@ public class BuildStatsCrawler
         public string Role { get; set; } = string.Empty;
         public int OpponentChampionId { get; set; }
         public string OpponentChampionKey { get; set; } = string.Empty;
+        public int Picks { get; set; }
+        public int Wins { get; set; }
+    }
+
+    private class AggregatedBuildOrderStat
+    {
+        public int ChampionId { get; set; }
+        public string ChampionKey { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public int Item1Id { get; set; }
+        public int Item2Id { get; set; }
+        public int Item3Id { get; set; }
+        public int Picks { get; set; }
+        public int Wins { get; set; }
+    }
+
+    private class AggregatedSkillOrderStat
+    {
+        public int ChampionId { get; set; }
+        public string ChampionKey { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string EarlySkillSequence { get; set; } = string.Empty;
         public int Picks { get; set; }
         public int Wins { get; set; }
     }

@@ -169,6 +169,47 @@ public class RiotApiService : IRiotApiService
         };
     }
 
+    public async Task<List<(int participantId, int skillSlot)>> GetEarlySkillOrderAsync(
+        string matchId, string platform, CancellationToken ct = default)
+    {
+        var regionalRoute = RegionMapping.GetRegionalRoute(platform);
+        var client = _httpClientFactory.CreateClient("RiotApi");
+        var url = $"https://{regionalRoute}.api.riotgames.com/lol/match/v5/matches/{matchId}/timeline";
+
+        var response = await client.GetAsync(url, ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
+        var result = new List<(int participantId, int skillSlot)>();
+        var countPerParticipant = new Dictionary<int, int>();
+
+        if (json.TryGetProperty("info", out var info) &&
+            info.TryGetProperty("frames", out var frames))
+        {
+            foreach (var frame in frames.EnumerateArray())
+            {
+                if (!frame.TryGetProperty("events", out var events)) continue;
+                foreach (var evt in events.EnumerateArray())
+                {
+                    if (evt.TryGetProperty("type", out var type) &&
+                        type.GetString() == "SKILL_LEVEL_UP" &&
+                        evt.TryGetProperty("participantId", out var pid) &&
+                        evt.TryGetProperty("skillSlot", out var slot))
+                    {
+                        var participantId = pid.GetInt32();
+                        countPerParticipant.TryGetValue(participantId, out var count);
+                        if (count < 3) // Only first 3 skills (levels 1-3)
+                        {
+                            result.Add((participantId, slot.GetInt32()));
+                            countPerParticipant[participantId] = count + 1;
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
     /// <summary>
     /// Flatten the nested Riot perks structure into a flat 6-element array:
     /// [primary keystone, primary row1, primary row2, primary row3, secondary slot1, secondary slot2].

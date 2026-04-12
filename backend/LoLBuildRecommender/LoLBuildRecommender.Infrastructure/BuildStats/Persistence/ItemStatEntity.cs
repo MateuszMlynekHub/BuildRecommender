@@ -149,3 +149,39 @@ public class MatchupStatEntity
 
     public DateTime UpdatedAt { get; set; }
 }
+
+/// <summary>
+/// Tracks 3-item core build paths per champion+role. Items extracted from final inventory,
+/// filtered to completed non-boots items, ordered by slot position (proxy for build order).
+/// </summary>
+public class BuildOrderStatEntity
+{
+    public int Id { get; set; }
+    public string Patch { get; set; } = string.Empty;
+    public int ChampionId { get; set; }
+    public string ChampionKey { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public int Item1Id { get; set; }
+    public int Item2Id { get; set; }
+    public int Item3Id { get; set; }
+    public int Picks { get; set; }
+    public int Wins { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Per-role skill order tracking — which early skill sequence (levels 1-3) is used per role.
+/// </summary>
+public class SkillOrderStatEntity
+{
+    public int Id { get; set; }
+    public string Patch { get; set; } = string.Empty;
+    public int ChampionId { get; set; }
+    public string ChampionKey { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    /// <summary>Comma-separated first 3 skills, e.g. "Q,E,W" or "E,Q,W".</summary>
+    public string EarlySkillSequence { get; set; } = string.Empty;
+    public int Picks { get; set; }
+    public int Wins { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}

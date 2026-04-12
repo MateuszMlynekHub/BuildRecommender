@@ -30,6 +30,14 @@ public interface IBuildStatsService
     Task<IReadOnlyList<MatchupStat>> GetMatchupsAsync(
         int championId, string lane, int count = 10, CancellationToken ct = default);
 
+    /// <summary>Top 3-item core build paths by picks for champion+lane.</summary>
+    Task<IReadOnlyList<BuildOrderEntry>> GetBuildOrdersAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default);
+
+    /// <summary>Top early skill sequences (levels 1-3) for champion+lane.</summary>
+    Task<IReadOnlyList<SkillOrderEntry>> GetSkillOrdersAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default);
+
     /// <summary>Tier list: aggregated win/pick rates per champion per role on current patch.</summary>
     Task<IReadOnlyList<TierListEntry>> GetTierListAsync(string? role = null, CancellationToken ct = default);
 

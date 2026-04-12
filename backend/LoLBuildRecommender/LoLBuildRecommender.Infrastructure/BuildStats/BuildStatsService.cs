@@ -122,6 +122,46 @@ public class BuildStatsService : IBuildStatsService
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<BuildOrderEntry>> GetBuildOrdersAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default)
+    {
+        var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
+        if (string.IsNullOrEmpty(patch)) return Array.Empty<BuildOrderEntry>();
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.BuildOrderStats.AsNoTracking()
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
+            .OrderByDescending(s => s.Picks)
+            .ThenByDescending(s => s.Wins)
+            .Take(count)
+            .Select(r => new BuildOrderEntry
+            {
+                Item1Id = r.Item1Id, Item2Id = r.Item2Id, Item3Id = r.Item3Id,
+                Picks = r.Picks, Wins = r.Wins,
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<SkillOrderEntry>> GetSkillOrdersAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default)
+    {
+        var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
+        if (string.IsNullOrEmpty(patch)) return Array.Empty<SkillOrderEntry>();
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.SkillOrderStats.AsNoTracking()
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
+            .OrderByDescending(s => s.Picks)
+            .ThenByDescending(s => s.Wins)
+            .Take(count)
+            .Select(r => new SkillOrderEntry
+            {
+                EarlySkillSequence = r.EarlySkillSequence,
+                Picks = r.Picks, Wins = r.Wins,
+            })
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<TierListEntry>> GetTierListAsync(
         string? role = null, CancellationToken ct = default)
     {

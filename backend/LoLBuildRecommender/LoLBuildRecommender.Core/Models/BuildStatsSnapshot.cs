@@ -78,6 +78,30 @@ public class MetaShiftEntry
 }
 
 /// <summary>
+/// 3-item core build path with pick/win rates.
+/// </summary>
+public class BuildOrderEntry
+{
+    public int Item1Id { get; set; }
+    public int Item2Id { get; set; }
+    public int Item3Id { get; set; }
+    public int Picks { get; set; }
+    public int Wins { get; set; }
+    public double WinRate => Picks == 0 ? 0 : (double)Wins / Picks;
+}
+
+/// <summary>
+/// Role-specific early skill order (levels 1-3) with pick/win rates.
+/// </summary>
+public class SkillOrderEntry
+{
+    public string EarlySkillSequence { get; set; } = string.Empty;
+    public int Picks { get; set; }
+    public int Wins { get; set; }
+    public double WinRate => Picks == 0 ? 0 : (double)Wins / Picks;
+}
+
+/// <summary>
 /// Tier list entry: aggregated champion performance in a specific role on the current patch.
 /// Picks = total games observed, Wins = games won. Pick rate is computed client-side
 /// from total games in the patch.

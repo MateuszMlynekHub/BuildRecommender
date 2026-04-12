@@ -8,6 +8,7 @@ import { SeoService } from '../../core/services/seo.service';
 import { Champion } from '../../core/models/champion.model';
 import {
   DDragonChampionDetail, ChampionBuildStat, RunePage, SpellSet, MatchupStat,
+  BuildOrderEntry, SkillOrderEntry,
 } from '../../core/models/champion-detail.model';
 import { TPipe } from '../../shared/pipes/t.pipe';
 import { PERK_ICONS } from '../../core/perk-icons';
@@ -192,12 +193,27 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
               </div>
             </section>
 
-            <!-- Skill Order -->
+            <!-- Skill Order (role-specific from match data or Meraki fallback) -->
+              <section class="cd-section">
+                <h2 class="cd-section__title">{{ 'champion.skillOrder' | t }} ({{ selectedRole() }})</h2>
+
+            @if (skillOrders().length > 0) {
+                @for (so of skillOrders(); track so.earlySkillSequence; let first = $first) {
+                  <div class="cd-build-path" [class.cd-build-path--primary]="first">
+                    <div class="cd-skill-priority">
+                      Start: {{ so.earlySkillSequence }}
+                    </div>
+                    <div class="cd-build-path__stats">
+                      <span class="cd-item__wr">{{ (so.winRate * 100).toFixed(1) }}% WR</span>
+                      <span class="cd-item__picks">{{ so.picks }} games</span>
+                    </div>
+                  </div>
+                }
+            }
+
             @if (championInfo()?.skillOrder?.levels?.length === 18) {
               @let so = championInfo()!.skillOrder!;
-              <section class="cd-section">
-                <h2 class="cd-section__title">{{ 'champion.skillOrder' | t }}</h2>
-                <div class="cd-skill-priority">
+                <div class="cd-skill-priority" style="margin-top:0.75rem">
                   Max: {{ so.priority[0] }} > {{ so.priority[1] }} > {{ so.priority[2] }}
                 </div>
                 <div class="cd-skill-table">
@@ -218,29 +234,47 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
                     </div>
                   }
                 </div>
-              </section>
             }
+              </section>
           </div>
 
           <!-- RIGHT COLUMN -->
           <div class="cd-col">
 
-            <!-- Core Build Path -->
-            @if (coreItems().length > 0) {
+            <!-- Core Build Paths (from match data) -->
               <section class="cd-section">
-                <h2 class="cd-section__title">Core Build</h2>
+                <h2 class="cd-section__title">Core Build Paths</h2>
+            @if (buildOrders().length > 0) {
+                @for (bo of buildOrders(); track $index; let first = $first) {
+                  <div class="cd-build-path" [class.cd-build-path--primary]="first">
+                    <div class="cd-core-build">
+                      <img [src]="gameState.getItemImageUrl(bo.item1Id + '.png')" width="36" height="36" class="cd-core-item__img" loading="lazy" />
+                      <span class="cd-core-arrow">&#x2192;</span>
+                      <img [src]="gameState.getItemImageUrl(bo.item2Id + '.png')" width="36" height="36" class="cd-core-item__img" loading="lazy" />
+                      <span class="cd-core-arrow">&#x2192;</span>
+                      <img [src]="gameState.getItemImageUrl(bo.item3Id + '.png')" width="36" height="36" class="cd-core-item__img" loading="lazy" />
+                    </div>
+                    <div class="cd-build-path__stats">
+                      <span class="cd-item__wr">{{ (bo.winRate * 100).toFixed(1) }}% WR</span>
+                      <span class="cd-item__picks">{{ bo.picks }} games</span>
+                    </div>
+                  </div>
+                }
+            } @else if (coreItems().length > 0) {
                 <div class="cd-core-build">
                   @for (item of coreItems(); track item.itemId; let last = $last) {
                     <div class="cd-core-item">
                       <img [src]="gameState.getItemImageUrl(item.itemId + '.png')" [alt]="item.itemName"
-                        width="40" height="40" class="cd-core-item__img" loading="lazy" />
+                        width="36" height="36" class="cd-core-item__img" loading="lazy" />
                       <span class="cd-core-item__name">{{ item.itemName }}</span>
                     </div>
                     @if (!last) { <span class="cd-core-arrow">&#x2192;</span> }
                   }
                 </div>
-              </section>
+            } @else {
+                <div class="cd-empty">Collecting build order data...</div>
             }
+              </section>
 
             <!-- Boots -->
             @if (bootsItems().length > 0) {
@@ -551,6 +585,13 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
     .cd-core-item__img { border-radius: 4px; border: 2px solid var(--lol-gold-4); }
     .cd-core-item__name { font-size: 0.62rem; color: var(--lol-gold-2); text-align: center; max-width: 70px; line-height: 1.2; }
     .cd-core-arrow { font-size: 1.2rem; color: var(--lol-gold-3); font-weight: 700; }
+    .cd-build-path {
+      display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
+      padding: 0.5rem; margin-bottom: 0.4rem; background: rgba(1,10,19,0.4);
+      border: 1px solid var(--lol-gold-5); border-radius: 2px;
+    }
+    .cd-build-path--primary { border-color: var(--lol-gold-4); background: rgba(200,155,60,0.06); }
+    .cd-build-path__stats { display: flex; gap: 0.5rem; font-size: 0.68rem; flex-shrink: 0; }
 
     /* Empty state */
     .cd-empty {
@@ -586,6 +627,8 @@ export class ChampionDetailComponent implements OnInit {
   readonly runes = signal<RunePage[]>([]);
   readonly spells = signal<SpellSet[]>([]);
   readonly matchups = signal<MatchupStat[]>([]);
+  readonly buildOrders = signal<BuildOrderEntry[]>([]);
+  readonly skillOrders = signal<SkillOrderEntry[]>([]);
   readonly selectedRole = signal<string>('');
   readonly loading = signal(true);
   readonly spellKeys = SPELL_KEYS;
@@ -659,6 +702,8 @@ export class ChampionDetailComponent implements OnInit {
     this.runes.set([]);
     this.spells.set([]);
     this.matchups.set([]);
+    this.buildOrders.set([]);
+    this.skillOrders.set([]);
 
     this.api.getChampionBuildStats(championId, lane).subscribe({
       next: (stats) => this.buildStats.set(stats),
@@ -671,6 +716,12 @@ export class ChampionDetailComponent implements OnInit {
     });
     this.api.getChampionMatchups(championId, lane).subscribe({
       next: (m) => this.matchups.set(m),
+    });
+    this.api.getChampionBuildOrders(championId, lane).subscribe({
+      next: (bo) => this.buildOrders.set(bo),
+    });
+    this.api.getChampionSkillOrders(championId, lane).subscribe({
+      next: (so) => this.skillOrders.set(so),
     });
   }
 

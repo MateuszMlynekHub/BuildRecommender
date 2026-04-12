@@ -32,24 +32,23 @@ public class BuildStatsOptions
     public bool IncludeGrandmaster { get; set; } = true;
 
     /// <summary>
-    /// Include Master ladder (~2500+ players per region). Opt-in by default because the
-    /// larger pool can slow down first-time backfills substantially with a dev API key.
-    /// Enables full-champion coverage (all 170+ champions) when combined with 7-day backfill.
+    /// Include Master ladder (~2500+ players per region). Enabled by default for maximum
+    /// champion coverage — all 170+ champions appear in the dataset with 7-day backfill.
     /// </summary>
-    public bool IncludeMaster { get; set; } = false;
+    public bool IncludeMaster { get; set; } = true;
 
     /// <summary>
     /// Total cap on players pulled across all enabled tiers per crawl. Players are sampled
     /// in stratified fashion — equal portions from each enabled tier — so expanding tiers
     /// improves champion diversity without blowing up per-tier sample size.
     /// </summary>
-    public int MaxPlayers { get; set; } = 200;
+    public int MaxPlayers { get; set; } = 600;
 
     /// <summary>How many recent ranked matches to fetch per player before dedup.</summary>
-    public int MatchesPerPlayer { get; set; } = 10;
+    public int MatchesPerPlayer { get; set; } = 20;
 
-    /// <summary>Hard cap on unique match IDs per crawl (dedup runs before detail fetch).</summary>
-    public int MaxTotalMatches { get; set; } = 2000;
+    /// <summary>Hard cap on unique match IDs per crawl. Set to 0 for unlimited.</summary>
+    public int MaxTotalMatches { get; set; } = 0;
 
     /// <summary>
     /// Delay between each Riot API request issued by the crawler. Primary mechanism for

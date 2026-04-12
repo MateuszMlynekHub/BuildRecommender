@@ -111,6 +111,20 @@ public class DataController : ControllerBase
         return Ok(spells);
     }
 
+    [HttpGet("buildstats/{championId:int}/{lane}/buildorder")]
+    public async Task<ActionResult> GetChampionBuildOrder(int championId, string lane, [FromQuery] int count = 5)
+    {
+        var orders = await _buildStats.GetBuildOrdersAsync(championId, lane.ToUpperInvariant(), count);
+        return Ok(orders);
+    }
+
+    [HttpGet("buildstats/{championId:int}/{lane}/skillorder")]
+    public async Task<ActionResult> GetChampionSkillOrder(int championId, string lane, [FromQuery] int count = 5)
+    {
+        var orders = await _buildStats.GetSkillOrdersAsync(championId, lane.ToUpperInvariant(), count);
+        return Ok(orders);
+    }
+
     [HttpGet("buildstats/{championId:int}/{lane}/matchups")]
     public async Task<ActionResult> GetChampionMatchups(int championId, string lane, [FromQuery] int count = 10)
     {
