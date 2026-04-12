@@ -3,6 +3,7 @@ using LoLBuildRecommender.Api.Dtos;
 using LoLBuildRecommender.Core.Interfaces;
 using LoLBuildRecommender.Core.Models;
 using LoLBuildRecommender.Core.Services;
+using LoLBuildRecommender.Infrastructure.RiotApi;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LoLBuildRecommender.Api.Controllers;
@@ -140,13 +141,27 @@ public class GameController : ControllerBase
         try { puuid = await _riotApi.GetPuuidByRiotIdAsync(gameName, tagLine, region); }
         catch (HttpRequestException ex) { return MapRiotError(ex, "resolve Riot ID"); }
 
-        // Fetch rank data
+        // Fetch summoner profile (icon, level) + rank data
+        int profileIconId = 0;
+        long summonerLevel = 0;
         List<RankedEntry> rankedEntries = [];
         try
         {
-            var summonerId = await _riotApi.GetSummonerIdByPuuidAsync(puuid, region);
-            if (summonerId is not null)
-                rankedEntries = await _riotApi.GetLeagueEntriesAsync(summonerId, region);
+            // Cast to access extended method (interface only has GetSummonerIdByPuuidAsync)
+            if (_riotApi is Infrastructure.RiotApi.RiotApiService riotSvc)
+            {
+                var (summonerId, iconId, level) = await riotSvc.GetSummonerByPuuidAsync(puuid, region);
+                profileIconId = iconId;
+                summonerLevel = level;
+                if (summonerId is not null)
+                    rankedEntries = await _riotApi.GetLeagueEntriesAsync(summonerId, region);
+            }
+            else
+            {
+                var summonerId = await _riotApi.GetSummonerIdByPuuidAsync(puuid, region);
+                if (summonerId is not null)
+                    rankedEntries = await _riotApi.GetLeagueEntriesAsync(summonerId, region);
+            }
         }
         catch { /* rank fetch is non-critical */ }
 
@@ -200,13 +215,75 @@ public class GameController : ControllerBase
             catch { /* skip failed match fetches */ }
         }
 
+        // Compute stats from match data
+        var myMatches = matches.Cast<dynamic>()
+            .Select(m => ((IEnumerable<dynamic>)m.participants).FirstOrDefault(pp => pp.puuid == puuid))
+            .Where(me => me is not null)
+            .ToList();
+
+        // Top 5 champions played
+        var topChampions = myMatches
+            .GroupBy(me => new { me.championId, me.championName, me.championImage })
+            .Select(g => new {
+                championId = (int)g.Key.championId,
+                championName = (string)g.Key.championName,
+                championImage = (string)g.Key.championImage,
+                games = g.Count(),
+                wins = g.Count(m => (bool)m.win),
+            })
+            .OrderByDescending(c => c.games)
+            .Take(5)
+            .ToList();
+
+        // Games per lane
+        var laneStats = myMatches
+            .Where(me => !string.IsNullOrEmpty((string)me.teamPosition))
+            .GroupBy(me => (string)me.teamPosition)
+            .Select(g => new { lane = g.Key, games = g.Count() })
+            .OrderByDescending(l => l.games)
+            .ToList();
+
+        // Recently played with — teammates across all matches
+        var recentlyPlayedWith = new Dictionary<string, (string name, int games, int wins)>();
+        foreach (var matchObj in matches.Cast<dynamic>())
+        {
+            var participants = (IEnumerable<dynamic>)matchObj.participants;
+            var me = participants.FirstOrDefault(pp => (string)pp.puuid == puuid);
+            if (me is null) continue;
+            var myTeam = (int)me.teamId;
+            var myWin = (bool)me.win;
+            foreach (var teammate in participants)
+            {
+                if ((string)teammate.puuid == puuid) continue;
+                if ((int)teammate.teamId != myTeam) continue;
+                var tPuuid = (string)teammate.puuid;
+                var tName = (string)teammate.championName;
+                if (!recentlyPlayedWith.TryGetValue(tPuuid, out var entry))
+                    entry = (tName, 0, 0);
+                recentlyPlayedWith[tPuuid] = (tName, entry.games + 1, entry.wins + (myWin ? 1 : 0));
+            }
+        }
+        var playedWith = recentlyPlayedWith
+            .Where(kv => kv.Value.games >= 2)
+            .OrderByDescending(kv => kv.Value.games)
+            .Take(10)
+            .Select(kv => new { puuid = kv.Key, lastChampion = kv.Value.name, games = kv.Value.games, wins = kv.Value.wins })
+            .ToList();
+
         return Ok(new
         {
             puuid,
             gameName,
             tagLine,
             region,
+            profileIconUrl = profileIconId > 0
+                ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/profileicon/{profileIconId}.png"
+                : "",
+            summonerLevel,
             rankedEntries,
+            topChampions,
+            laneStats,
+            recentlyPlayedWith = playedWith,
             matchCount = matchIds.Length,
             recentMatches = matches,
         });

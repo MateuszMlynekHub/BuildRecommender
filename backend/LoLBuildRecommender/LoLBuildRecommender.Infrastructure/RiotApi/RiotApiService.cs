@@ -181,14 +181,25 @@ public class RiotApiService : IRiotApiService
         };
     }
 
-    public async Task<string?> GetSummonerIdByPuuidAsync(string puuid, string platform, CancellationToken ct = default)
+    public async Task<(string? summonerId, int profileIconId, long summonerLevel)> GetSummonerByPuuidAsync(
+        string puuid, string platform, CancellationToken ct = default)
     {
         var client = _httpClientFactory.CreateClient("RiotApi");
         var url = $"https://{platform}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}";
         var response = await client.GetAsync(url, ct);
-        if (!response.IsSuccessStatusCode) return null;
+        if (!response.IsSuccessStatusCode) return (null, 0, 0);
         var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
-        return json.TryGetProperty("id", out var id) ? id.GetString() : null;
+        var summonerId = json.TryGetProperty("id", out var id) ? id.GetString() : null;
+        var iconId = json.TryGetProperty("profileIconId", out var icon) ? icon.GetInt32() : 0;
+        var level = json.TryGetProperty("summonerLevel", out var lvl) ? lvl.GetInt64() : 0;
+        return (summonerId, iconId, level);
+    }
+
+    // Keep interface-compatible overload
+    public async Task<string?> GetSummonerIdByPuuidAsync(string puuid, string platform, CancellationToken ct = default)
+    {
+        var (summonerId, _, _) = await GetSummonerByPuuidAsync(puuid, platform, ct);
+        return summonerId;
     }
 
     public async Task<List<RankedEntry>> GetLeagueEntriesAsync(string summonerId, string platform, CancellationToken ct = default)
