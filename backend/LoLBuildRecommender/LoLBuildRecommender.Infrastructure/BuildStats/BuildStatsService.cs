@@ -123,6 +123,26 @@ public class BuildStatsService : IBuildStatsService
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<StartingItemEntry>> GetStartingItemsAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default)
+    {
+        var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
+        if (string.IsNullOrEmpty(patch)) return Array.Empty<StartingItemEntry>();
+
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.StartingItemStats.AsNoTracking()
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane && s.Picks >= 3)
+            .OrderByDescending(s => (double)s.Wins / s.Picks)
+            .ThenByDescending(s => s.Picks)
+            .Take(count)
+            .Select(r => new StartingItemEntry
+            {
+                ItemIds = r.ItemIds,
+                Picks = r.Picks, Wins = r.Wins,
+            })
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<BuildOrderEntry>> GetBuildOrdersAsync(
         int championId, string lane, int count = 5, CancellationToken ct = default)
     {
@@ -213,6 +233,20 @@ public class BuildStatsService : IBuildStatsService
                 })
                 .OrderByDescending(e => e.Picks)
                 .ToListAsync(ct);
+        }
+
+        // Merge ban data into tier list entries
+        var banData = await db.BanStats.AsNoTracking()
+            .Where(s => s.Patch == patch)
+            .ToDictionaryAsync(s => s.ChampionId, s => new { s.Bans, s.TotalMatches }, ct);
+
+        foreach (var row in rows)
+        {
+            if (banData.TryGetValue(row.ChampionId, out var ban))
+            {
+                row.Bans = ban.Bans;
+                row.TotalMatches = ban.TotalMatches;
+            }
         }
 
         return rows;

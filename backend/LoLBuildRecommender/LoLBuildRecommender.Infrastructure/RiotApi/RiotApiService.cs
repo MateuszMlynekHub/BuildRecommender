@@ -115,6 +115,12 @@ public class RiotApiService : IRiotApiService
                 StatDefense = p.Perks?.StatPerks?.Defense ?? 0,
                 Win = p.Win,
             }).ToList(),
+            BannedChampionIds = dto.Info.Teams
+                .SelectMany(t => t.Bans)
+                .Where(b => b.ChampionId > 0)
+                .Select(b => b.ChampionId)
+                .Distinct()
+                .ToList(),
         };
     }
 
@@ -169,7 +175,7 @@ public class RiotApiService : IRiotApiService
         };
     }
 
-    public async Task<List<(int participantId, int skillSlot)>> GetEarlySkillOrderAsync(
+    public async Task<MatchTimelineExtract?> GetMatchTimelineExtractAsync(
         string matchId, string platform, CancellationToken ct = default)
     {
         var regionalRoute = RegionMapping.GetRegionalRoute(platform);
@@ -177,11 +183,13 @@ public class RiotApiService : IRiotApiService
         var url = $"https://{regionalRoute}.api.riotgames.com/lol/match/v5/matches/{matchId}/timeline";
 
         var response = await client.GetAsync(url, ct);
-        if (!response.IsSuccessStatusCode) return [];
+        if (!response.IsSuccessStatusCode) return null;
 
         var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
-        var result = new List<(int participantId, int skillSlot)>();
-        var countPerParticipant = new Dictionary<int, int>();
+
+        var skillLevelUps = new Dictionary<int, List<int>>();
+        var itemPurchases = new Dictionary<int, List<(int timestamp, int itemId)>>();
+        var skillCountPerParticipant = new Dictionary<int, int>();
 
         if (json.TryGetProperty("info", out var info) &&
             info.TryGetProperty("frames", out var frames))
@@ -189,25 +197,45 @@ public class RiotApiService : IRiotApiService
             foreach (var frame in frames.EnumerateArray())
             {
                 if (!frame.TryGetProperty("events", out var events)) continue;
+
                 foreach (var evt in events.EnumerateArray())
                 {
-                    if (evt.TryGetProperty("type", out var type) &&
-                        type.GetString() == "SKILL_LEVEL_UP" &&
-                        evt.TryGetProperty("participantId", out var pid) &&
+                    if (!evt.TryGetProperty("type", out var typeProp)) continue;
+                    var type = typeProp.GetString();
+
+                    if (type == "SKILL_LEVEL_UP" &&
+                        evt.TryGetProperty("participantId", out var skillPid) &&
                         evt.TryGetProperty("skillSlot", out var slot))
                     {
-                        var participantId = pid.GetInt32();
-                        countPerParticipant.TryGetValue(participantId, out var count);
-                        if (count < 3) // Only first 3 skills (levels 1-3)
+                        var pid = skillPid.GetInt32();
+                        skillCountPerParticipant.TryGetValue(pid, out var count);
+                        if (count < 3)
                         {
-                            result.Add((participantId, slot.GetInt32()));
-                            countPerParticipant[participantId] = count + 1;
+                            if (!skillLevelUps.ContainsKey(pid))
+                                skillLevelUps[pid] = new List<int>();
+                            skillLevelUps[pid].Add(slot.GetInt32());
+                            skillCountPerParticipant[pid] = count + 1;
                         }
+                    }
+                    else if (type == "ITEM_PURCHASED" &&
+                             evt.TryGetProperty("participantId", out var itemPid) &&
+                             evt.TryGetProperty("itemId", out var itemId) &&
+                             evt.TryGetProperty("timestamp", out var timestamp))
+                    {
+                        var pid = itemPid.GetInt32();
+                        if (!itemPurchases.ContainsKey(pid))
+                            itemPurchases[pid] = new List<(int, int)>();
+                        itemPurchases[pid].Add((timestamp.GetInt32(), itemId.GetInt32()));
                     }
                 }
             }
         }
-        return result;
+
+        return new MatchTimelineExtract
+        {
+            SkillLevelUps = skillLevelUps,
+            ItemPurchases = itemPurchases,
+        };
     }
 
     /// <summary>

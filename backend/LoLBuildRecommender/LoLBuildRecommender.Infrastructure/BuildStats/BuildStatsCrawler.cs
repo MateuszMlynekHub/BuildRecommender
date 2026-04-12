@@ -91,6 +91,25 @@ public class BuildStatsCrawler
 
     public async Task CrawlAndPersistAsync(CancellationToken ct = default)
     {
+        var regions = _options.Regions is { Length: > 0 } ? _options.Regions : [_options.Region];
+
+        foreach (var region in regions)
+        {
+            if (ct.IsCancellationRequested) break;
+            _logger.LogInformation("Starting crawl for region {Region}", region);
+            try
+            {
+                await CrawlRegionAsync(region, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Crawl failed for region {Region} — continuing to next", region);
+            }
+        }
+    }
+
+    private async Task CrawlRegionAsync(string crawlRegion, CancellationToken ct)
+    {
         var champInfo = await _gameData.GetChampionsAsync();
         var itemInfo = await _gameData.GetCompletedItemsAsync();
         var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
@@ -111,6 +130,17 @@ public class BuildStatsCrawler
                 .ExecuteDeleteAsync(ct);
             if (prunedOldMatches > 0)
                 _logger.LogInformation("Pruned {Count} ProcessedMatches rows from previous patches", prunedOldMatches);
+        }
+
+        // Validate existing item data against current DDragon items — remove rows for
+        // items that no longer exist (reworked/removed between patches).
+        await using (var cleanupDb = await _dbFactory.CreateDbContextAsync(ct))
+        {
+            var staleItems = await cleanupDb.ItemStats
+                .Where(s => s.Patch == patch && !itemInfo.Keys.Contains(s.ItemId))
+                .ExecuteDeleteAsync(ct);
+            if (staleItems > 0)
+                _logger.LogInformation("Removed {Count} stale item stat rows (items no longer in DDragon)", staleItems);
         }
 
         var existingMeta = await GetExistingMetadataAsync(patch, ct);
@@ -164,10 +194,10 @@ public class BuildStatsCrawler
         var started = DateTime.UtcNow;
         _logger.LogInformation(
             "Crawl start: patch={Patch}, mode={Mode}, region={Region}, delay={DelayMs}ms, cap={Max} matches",
-            patch, modeLabel, _options.Region, _options.RequestDelayMs, _options.MaxTotalMatches);
+            patch, modeLabel, crawlRegion, _options.RequestDelayMs, _options.MaxTotalMatches);
 
         // --- 1. Seed: PUUIDs from every enabled ladder tier (Challenger, Grandmaster, Master) ---
-        var puuids = await FetchPlayerPoolAsync(ct);
+        var puuids = await FetchPlayerPoolAsync(crawlRegion, ct);
         if (puuids.Length == 0)
         {
             _logger.LogWarning(
@@ -189,7 +219,7 @@ public class BuildStatsCrawler
             try
             {
                 var ids = await _riot.GetRankedMatchIdsAsync(
-                    puuid, _options.Region, perPlayerLimit, startTime, ct);
+                    puuid, crawlRegion, perPlayerLimit, startTime, ct);
                 foreach (var id in ids)
                 {
                     windowIds.Add(id);
@@ -254,6 +284,9 @@ public class BuildStatsCrawler
         var batchMatchupAggregate = new Dictionary<(int championId, string role, int opponentId), AggregatedMatchupStat>();
         var batchBuildOrderAggregate = new Dictionary<(int championId, string role, int item1, int item2, int item3), AggregatedBuildOrderStat>();
         var batchSkillOrderAggregate = new Dictionary<(int championId, string role, string earlySequence), AggregatedSkillOrderStat>();
+        var batchStartingItemAggregate = new Dictionary<(int championId, string role, string itemIds), AggregatedStartingItemStat>();
+        var batchBanAggregate = new Dictionary<int, (string championKey, int bans)>();
+        var batchTotalMatches = 0;
         var batchMatchIds = new List<string>();
         var batchAggregatedCount = 0;  // matches in the current batch that contributed to ItemStats
         var totalProcessed = 0;
@@ -269,7 +302,7 @@ public class BuildStatsCrawler
             MatchDetails? match;
             try
             {
-                match = await _riot.GetMatchDetailsAsync(matchId, _options.Region, ct);
+                match = await _riot.GetMatchDetailsAsync(matchId, crawlRegion, ct);
             }
             catch (Exception ex)
             {
@@ -401,81 +434,111 @@ public class BuildStatsCrawler
                 }
             }
 
-            // --- Build order: extract top 3 non-boots completed items per participant ---
-            foreach (var p in match.Participants)
+            // --- Ban tracking ---
+            batchTotalMatches++;
+            foreach (var bannedId in match.BannedChampionIds)
             {
-                if (string.IsNullOrEmpty(p.TeamPosition)) continue;
-                if (!champInfo.TryGetValue(p.ChampionId, out var champ)) continue;
-                var role = NormalizeLane(p.TeamPosition);
-
-                var coreItems = p.Items
-                    .Where(id => id != 0)
-                    .Select(id => ItemIdAliases.GetValueOrDefault(id, id))
-                    .Where(id => !BootsItemIds.Contains(id) && itemInfo.ContainsKey(id))
-                    .Distinct()
-                    .Take(3)
-                    .ToArray();
-
-                if (coreItems.Length == 3)
+                if (champInfo.TryGetValue(bannedId, out var bannedChamp))
                 {
-                    var boKey = (p.ChampionId, role, coreItems[0], coreItems[1], coreItems[2]);
-                    if (!batchBuildOrderAggregate.TryGetValue(boKey, out var boStat))
-                    {
-                        boStat = new AggregatedBuildOrderStat
-                        {
-                            ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
-                            Item1Id = coreItems[0], Item2Id = coreItems[1], Item3Id = coreItems[2],
-                        };
-                        batchBuildOrderAggregate[boKey] = boStat;
-                    }
-                    boStat.Picks++;
-                    if (p.Win) boStat.Wins++;
+                    if (!batchBanAggregate.TryGetValue(bannedId, out var banEntry))
+                        banEntry = (bannedChamp.Key, 0);
+                    batchBanAggregate[bannedId] = (banEntry.championKey, banEntry.bans + 1);
                 }
             }
 
-            // --- Skill order from timeline (1 extra API call per match) ---
+            // --- Timeline extraction: build order + skill order + starting items ---
             try
             {
-                var skillEvents = await _riot.GetEarlySkillOrderAsync(matchId, _options.Region, ct);
+                var timeline = await _riot.GetMatchTimelineExtractAsync(matchId, crawlRegion, ct);
                 await ThrottleAsync(ct);
 
-                // Group by participantId (1-indexed in Riot API)
-                var byParticipant = skillEvents.GroupBy(e => e.participantId);
-                for (var pidx = 0; pidx < match.Participants.Count; pidx++)
+                if (timeline is not null)
                 {
-                    var p = match.Participants[pidx];
-                    if (string.IsNullOrEmpty(p.TeamPosition)) continue;
-                    if (!champInfo.TryGetValue(p.ChampionId, out var champ)) continue;
-                    var role = NormalizeLane(p.TeamPosition);
-
-                    // Riot participantId is 1-indexed (participant 0 → id 1)
-                    var riotPid = pidx + 1;
-                    var skills = byParticipant.FirstOrDefault(g => g.Key == riotPid)?
-                        .Select(e => SkillSlotToLetter(e.skillSlot))
-                        .Take(3)
-                        .ToArray();
-
-                    if (skills is { Length: 3 })
+                    for (var pidx = 0; pidx < match.Participants.Count; pidx++)
                     {
-                        var seq = string.Join(",", skills);
-                        var soKey = (p.ChampionId, role, seq);
-                        if (!batchSkillOrderAggregate.TryGetValue(soKey, out var soStat))
+                        var p = match.Participants[pidx];
+                        if (string.IsNullOrEmpty(p.TeamPosition)) continue;
+                        if (!champInfo.TryGetValue(p.ChampionId, out var champ)) continue;
+                        var role = NormalizeLane(p.TeamPosition);
+                        var riotPid = pidx + 1;
+
+                        // --- Build order: first 3 completed non-boots items by purchase time ---
+                        if (timeline.ItemPurchases.TryGetValue(riotPid, out var purchases))
                         {
-                            soStat = new AggregatedSkillOrderStat
+                            var orderedPurchases = purchases.OrderBy(x => x.timestamp);
+
+                            // Starting items: purchased in first 90 seconds (90000 ms)
+                            var startingItems = orderedPurchases
+                                .Where(x => x.timestamp <= 90000 && x.itemId != 0)
+                                .Select(x => x.itemId)
+                                .OrderBy(id => id)
+                                .ToArray();
+
+                            if (startingItems.Length > 0)
                             {
-                                ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
-                                EarlySkillSequence = seq,
-                            };
-                            batchSkillOrderAggregate[soKey] = soStat;
+                                var startKey = string.Join(",", startingItems);
+                                var siKey = (p.ChampionId, role, startKey);
+                                if (!batchStartingItemAggregate.TryGetValue(siKey, out var siStat))
+                                {
+                                    siStat = new AggregatedStartingItemStat
+                                    {
+                                        ChampionId = p.ChampionId, ChampionKey = champ.Key,
+                                        Role = role, ItemIds = startKey,
+                                    };
+                                    batchStartingItemAggregate[siKey] = siStat;
+                                }
+                                siStat.Picks++;
+                                if (p.Win) siStat.Wins++;
+                            }
+
+                            // Core build: first 3 completed items (non-boots, in item database)
+                            var coreItems = orderedPurchases
+                                .Select(x => ItemIdAliases.GetValueOrDefault(x.itemId, x.itemId))
+                                .Where(id => !BootsItemIds.Contains(id) && itemInfo.ContainsKey(id))
+                                .Distinct()
+                                .Take(3)
+                                .ToArray();
+
+                            if (coreItems.Length == 3)
+                            {
+                                var boKey = (p.ChampionId, role, coreItems[0], coreItems[1], coreItems[2]);
+                                if (!batchBuildOrderAggregate.TryGetValue(boKey, out var boStat))
+                                {
+                                    boStat = new AggregatedBuildOrderStat
+                                    {
+                                        ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
+                                        Item1Id = coreItems[0], Item2Id = coreItems[1], Item3Id = coreItems[2],
+                                    };
+                                    batchBuildOrderAggregate[boKey] = boStat;
+                                }
+                                boStat.Picks++;
+                                if (p.Win) boStat.Wins++;
+                            }
                         }
-                        soStat.Picks++;
-                        if (p.Win) soStat.Wins++;
+
+                        // --- Skill order: first 3 skill level-ups ---
+                        if (timeline.SkillLevelUps.TryGetValue(riotPid, out var skills) && skills.Count >= 3)
+                        {
+                            var seq = string.Join(",", skills.Take(3).Select(SkillSlotToLetter));
+                            var soKey = (p.ChampionId, role, seq);
+                            if (!batchSkillOrderAggregate.TryGetValue(soKey, out var soStat))
+                            {
+                                soStat = new AggregatedSkillOrderStat
+                                {
+                                    ChampionId = p.ChampionId, ChampionKey = champ.Key, Role = role,
+                                    EarlySkillSequence = seq,
+                                };
+                                batchSkillOrderAggregate[soKey] = soStat;
+                            }
+                            soStat.Picks++;
+                            if (p.Win) soStat.Wins++;
+                        }
                     }
                 }
             }
             catch
             {
-                // Timeline fetch failed — non-critical, skill order data just won't be collected for this match
+                // Timeline fetch failed — non-critical
             }
 
             batchMatchIds.Add(matchId);
@@ -484,7 +547,7 @@ public class BuildStatsCrawler
 
             if (batchMatchIds.Count >= PersistBatchSize)
             {
-                await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
+                await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchStartingItemAggregate, batchBanAggregate, batchTotalMatches, batchMatchIds, batchAggregatedCount, patch, ct);
                 totalFlushed += batchAggregatedCount;
                 _logger.LogInformation(
                     "Flushed batch: {BatchSize} match IDs ({Aggregated} aggregated) → DB total {Flushed}/{All} (in-memory rows: {Rows}, errors: {Errors})",
@@ -495,6 +558,9 @@ public class BuildStatsCrawler
                 batchMatchupAggregate.Clear();
                 batchBuildOrderAggregate.Clear();
                 batchSkillOrderAggregate.Clear();
+                batchStartingItemAggregate.Clear();
+                batchBanAggregate.Clear();
+                batchTotalMatches = 0;
                 batchMatchIds.Clear();
                 batchAggregatedCount = 0;
             }
@@ -503,7 +569,7 @@ public class BuildStatsCrawler
         // Final flush for the tail of matches that didn't fill a full batch.
         if (batchMatchIds.Count > 0)
         {
-            await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchMatchIds, batchAggregatedCount, patch, ct);
+            await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchStartingItemAggregate, batchBanAggregate, batchTotalMatches, batchMatchIds, batchAggregatedCount, patch, ct);
             totalFlushed += batchAggregatedCount;
             _logger.LogInformation(
                 "Flushed final batch: {BatchSize} match IDs ({Aggregated} aggregated) → DB total {Flushed}/{All}",
@@ -534,6 +600,9 @@ public class BuildStatsCrawler
         Dictionary<(int championId, string role, int opponentId), AggregatedMatchupStat> matchupBatch,
         Dictionary<(int championId, string role, int item1, int item2, int item3), AggregatedBuildOrderStat> buildOrderBatch,
         Dictionary<(int championId, string role, string earlySequence), AggregatedSkillOrderStat> skillOrderBatch,
+        Dictionary<(int championId, string role, string itemIds), AggregatedStartingItemStat> startingItemBatch,
+        Dictionary<int, (string championKey, int bans)> banBatch,
+        int totalMatchesInBatch,
         List<string> batchMatchIds,
         int aggregatedCount,
         string patch,
@@ -550,6 +619,7 @@ public class BuildStatsCrawler
             .Union(matchupBatch.Values.Select(v => v.ChampionId))
             .Union(buildOrderBatch.Values.Select(v => v.ChampionId))
             .Union(skillOrderBatch.Values.Select(v => v.ChampionId))
+            .Union(startingItemBatch.Values.Select(v => v.ChampionId))
             .Distinct().ToList();
 
         var now = DateTime.UtcNow;
@@ -736,6 +806,60 @@ public class BuildStatsCrawler
             }
         }
 
+        // --- Starting items UPSERT ---
+        var existingSi = await db.StartingItemStats
+            .Where(s => s.Patch == patch && champIds.Contains(s.ChampionId))
+            .ToListAsync(ct);
+        var siByKey = existingSi.ToDictionary(s => (s.ChampionId, s.Role, s.ItemIds));
+
+        foreach (var si in startingItemBatch.Values)
+        {
+            var key = (si.ChampionId, si.Role, si.ItemIds);
+            if (siByKey.TryGetValue(key, out var existing))
+            {
+                existing.Picks += si.Picks;
+                existing.Wins += si.Wins;
+                existing.UpdatedAt = now;
+            }
+            else
+            {
+                var entity = new StartingItemStatEntity
+                {
+                    Patch = patch, ChampionId = si.ChampionId, ChampionKey = si.ChampionKey,
+                    Role = si.Role, ItemIds = si.ItemIds,
+                    Picks = si.Picks, Wins = si.Wins, UpdatedAt = now,
+                };
+                db.StartingItemStats.Add(entity);
+                siByKey[key] = entity;
+            }
+        }
+
+        // --- Ban stats UPSERT ---
+        var existingBans = await db.BanStats
+            .Where(s => s.Patch == patch)
+            .ToListAsync(ct);
+        var banByKey = existingBans.ToDictionary(s => s.ChampionId);
+
+        foreach (var (champId, (champKey, bans)) in banBatch)
+        {
+            if (banByKey.TryGetValue(champId, out var existing))
+            {
+                existing.Bans += bans;
+                existing.TotalMatches += totalMatchesInBatch;
+                existing.UpdatedAt = now;
+            }
+            else
+            {
+                var entity = new BanStatEntity
+                {
+                    Patch = patch, ChampionId = champId, ChampionKey = champKey,
+                    Bans = bans, TotalMatches = totalMatchesInBatch, UpdatedAt = now,
+                };
+                db.BanStats.Add(entity);
+                banByKey[champId] = entity;
+            }
+        }
+
         // Track match IDs so future crawls don't re-count them.
         foreach (var matchId in batchMatchIds)
         {
@@ -776,15 +900,15 @@ public class BuildStatsCrawler
     /// contributes an equal share of the budget — so adding Grandmaster + Master expands
     /// champion diversity without diluting Challenger's meta data.
     /// </summary>
-    private async Task<string[]> FetchPlayerPoolAsync(CancellationToken ct)
+    private async Task<string[]> FetchPlayerPoolAsync(string crawlRegion, CancellationToken ct)
     {
         var tiers = new List<(string name, Func<Task<string[]>> fetch)>();
         if (_options.IncludeChallenger)
-            tiers.Add(("Challenger", () => _riot.GetChallengerPuuidsAsync(_options.Region, ct)));
+            tiers.Add(("Challenger", () => _riot.GetChallengerPuuidsAsync(crawlRegion, ct)));
         if (_options.IncludeGrandmaster)
-            tiers.Add(("Grandmaster", () => _riot.GetGrandmasterPuuidsAsync(_options.Region, ct)));
+            tiers.Add(("Grandmaster", () => _riot.GetGrandmasterPuuidsAsync(crawlRegion, ct)));
         if (_options.IncludeMaster)
-            tiers.Add(("Master", () => _riot.GetMasterPuuidsAsync(_options.Region, ct)));
+            tiers.Add(("Master", () => _riot.GetMasterPuuidsAsync(crawlRegion, ct)));
 
         if (tiers.Count == 0)
         {
@@ -880,6 +1004,8 @@ public class BuildStatsCrawler
         await db.MatchupStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.BuildOrderStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.SkillOrderStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
+        await db.StartingItemStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
+        await db.BanStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.CrawlMetadata.Where(m => m.Patch == patch).ExecuteDeleteAsync(ct);
     }
 
@@ -1007,6 +1133,16 @@ public class BuildStatsCrawler
         public string ChampionKey { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public string EarlySkillSequence { get; set; } = string.Empty;
+        public int Picks { get; set; }
+        public int Wins { get; set; }
+    }
+
+    private class AggregatedStartingItemStat
+    {
+        public int ChampionId { get; set; }
+        public string ChampionKey { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string ItemIds { get; set; } = string.Empty;
         public int Picks { get; set; }
         public int Wins { get; set; }
     }

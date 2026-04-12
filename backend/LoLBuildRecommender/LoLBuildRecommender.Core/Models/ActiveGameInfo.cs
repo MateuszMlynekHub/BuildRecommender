@@ -51,6 +51,9 @@ public record MatchDetails
     public int QueueId { get; init; }
 
     public List<MatchParticipant> Participants { get; init; } = [];
+
+    /// <summary>Champion IDs that were banned in this match (both teams combined).</summary>
+    public List<int> BannedChampionIds { get; init; } = [];
 }
 
 public record MatchParticipant
@@ -88,4 +91,16 @@ public record MatchParticipant
     public int StatDefense { get; init; }
 
     public bool Win { get; init; }
+}
+
+/// <summary>
+/// Extracted events from a match timeline — one API call, multiple data points.
+/// </summary>
+public record MatchTimelineExtract
+{
+    /// <summary>Per-participant skill level-ups (first 3 only).</summary>
+    public Dictionary<int, List<int>> SkillLevelUps { get; init; } = new();
+
+    /// <summary>Per-participant item purchases in chronological order. Each entry is (timestamp, itemId).</summary>
+    public Dictionary<int, List<(int timestamp, int itemId)>> ItemPurchases { get; init; } = new();
 }

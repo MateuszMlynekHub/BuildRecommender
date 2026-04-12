@@ -30,6 +30,10 @@ public interface IBuildStatsService
     Task<IReadOnlyList<MatchupStat>> GetMatchupsAsync(
         int championId, string lane, int count = 10, CancellationToken ct = default);
 
+    /// <summary>Top starting item sets (first 90s purchases) for champion+lane.</summary>
+    Task<IReadOnlyList<StartingItemEntry>> GetStartingItemsAsync(
+        int championId, string lane, int count = 5, CancellationToken ct = default);
+
     /// <summary>Top 3-item core build paths by picks for champion+lane.</summary>
     Task<IReadOnlyList<BuildOrderEntry>> GetBuildOrdersAsync(
         int championId, string lane, int count = 5, CancellationToken ct = default);

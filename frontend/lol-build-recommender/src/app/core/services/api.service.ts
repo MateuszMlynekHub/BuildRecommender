@@ -17,6 +17,7 @@ import {
   MetaShiftEntry,
   BuildOrderEntry,
   SkillOrderEntry,
+  StartingItemEntry,
 } from '../models/champion-detail.model';
 
 @Injectable({ providedIn: 'root' })
@@ -107,6 +108,13 @@ export class ApiService {
     const params: Record<string, string> = {};
     if (role) params['role'] = role;
     return this.http.get<TierListEntry[]>(`${this.baseUrl}/data/tierlist`, { params });
+  }
+
+  getChampionStartingItems(championId: number, lane: string, count = 5): Observable<StartingItemEntry[]> {
+    return this.http.get<StartingItemEntry[]>(
+      `${this.baseUrl}/data/buildstats/${championId}/${lane}/startingitems`,
+      { params: { count: count.toString() } },
+    );
   }
 
   getChampionBuildOrders(championId: number, lane: string, count = 5): Observable<BuildOrderEntry[]> {

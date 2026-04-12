@@ -58,6 +58,7 @@ function assignTier(wr: number, avgWr: number): Tier {
               <span class="tl-col tl-col--champ">Champion</span>
               <span class="tl-col tl-col--role">Role</span>
               <span class="tl-col tl-col--wr">Win Rate</span>
+              <span class="tl-col tl-col--ban">Ban Rate</span>
               <span class="tl-col tl-col--pr">Games</span>
             </div>
             @for (entry of sortedEntries(); track entry.championId + entry.role; let i = $index) {
@@ -73,6 +74,9 @@ function assignTier(wr: number, avgWr: number): Tier {
                 <span class="tl-col tl-col--role">{{ entry.role }}</span>
                 <span class="tl-col tl-col--wr" [class.tl-wr--high]="entry.winRate > 0.52" [class.tl-wr--low]="entry.winRate < 0.48">
                   {{ (entry.winRate * 100).toFixed(1) }}%
+                </span>
+                <span class="tl-col tl-col--ban" [class.tl-ban--high]="entry.banRate > 0.2">
+                  {{ (entry.banRate * 100).toFixed(1) }}%
                 </span>
                 <span class="tl-col tl-col--pr">{{ entry.picks }}</span>
               </a>
@@ -137,8 +141,10 @@ function assignTier(wr: number, avgWr: number): Tier {
     .tl-col--tier { width: 36px; text-align: center; font-weight: 700; font-family: 'Cinzel', serif; font-size: 0.82rem; }
     .tl-col--champ { flex: 1; display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
     .tl-col--role { width: 70px; font-size: 0.68rem; color: var(--lol-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .tl-col--wr { width: 70px; text-align: right; font-weight: 700; }
-    .tl-col--pr { width: 60px; text-align: right; color: var(--lol-text-muted); font-size: 0.72rem; }
+    .tl-col--wr { width: 65px; text-align: right; font-weight: 700; }
+    .tl-col--ban { width: 65px; text-align: right; font-size: 0.72rem; color: var(--lol-text-muted); }
+    .tl-col--pr { width: 55px; text-align: right; color: var(--lol-text-muted); font-size: 0.72rem; }
+    .tl-ban--high { color: #E84057; font-weight: 600; }
 
     .tl-row__img { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--lol-gold-5); }
 

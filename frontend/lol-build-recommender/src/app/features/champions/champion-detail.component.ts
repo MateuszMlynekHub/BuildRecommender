@@ -8,7 +8,7 @@ import { SeoService } from '../../core/services/seo.service';
 import { Champion } from '../../core/models/champion.model';
 import {
   DDragonChampionDetail, ChampionBuildStat, RunePage, SpellSet, MatchupStat,
-  BuildOrderEntry, SkillOrderEntry,
+  BuildOrderEntry, SkillOrderEntry, StartingItemEntry,
 } from '../../core/models/champion-detail.model';
 import { TPipe } from '../../shared/pipes/t.pipe';
 import { PERK_ICONS } from '../../core/perk-icons';
@@ -298,27 +298,66 @@ const RUNE_TREES: Record<number, { name: string; color: string }> = {
               </section>
             }
 
-            <!-- Counters -->
+            <!-- Starting Items -->
               <section class="cd-section">
-                <h2 class="cd-section__title">Matchups / Counters</h2>
-            @if (matchups().length > 0) {
+                <h2 class="cd-section__title">Starting Items</h2>
+            @if (startingItems().length > 0) {
+                @for (si of startingItems(); track si.itemIds; let first = $first) {
+                  <div class="cd-build-path" [class.cd-build-path--primary]="first">
+                    <div class="cd-core-build">
+                      @for (itemId of parseItemIds(si.itemIds); track $index) {
+                        <img [src]="gameState.getItemImageUrl(itemId + '.png')" width="28" height="28"
+                          class="cd-core-item__img" style="border-radius:4px" loading="lazy" />
+                      }
+                    </div>
+                    <div class="cd-build-path__stats">
+                      <span class="cd-item__wr">{{ (si.winRate * 100).toFixed(1) }}% WR</span>
+                      <span class="cd-item__picks">{{ si.picks }} games</span>
+                    </div>
+                  </div>
+                }
+            } @else {
+                <div class="cd-empty">Collecting starting item data...</div>
+            }
+              </section>
+
+            <!-- Best Matchups -->
+              <section class="cd-section">
+                <h2 class="cd-section__title" style="color:#50E3C2">Best Against</h2>
+            @if (bestMatchups().length > 0) {
                 <div class="cd-matchups">
-                  @for (m of matchups(); track m.opponentChampionId) {
+                  @for (m of bestMatchups(); track m.opponentChampionId) {
                     <a class="cd-matchup" [routerLink]="['/champion', m.opponentChampionKey]">
-                      <img class="cd-matchup__img"
-                        [src]="gameState.getChampionImageUrl(m.opponentChampionKey + '.png')"
-                        [alt]="m.opponentChampionKey"
-                        width="32" height="32" loading="lazy" />
+                      <img class="cd-matchup__img" [src]="gameState.getChampionImageUrl(m.opponentChampionKey + '.png')"
+                        [alt]="m.opponentChampionKey" width="32" height="32" loading="lazy" />
                       <span class="cd-matchup__name">{{ m.opponentChampionKey }}</span>
-                      <span class="cd-matchup__wr" [class.cd-matchup__wr--bad]="m.winRate < 0.5">
-                        {{ (m.winRate * 100).toFixed(1) }}%
-                      </span>
+                      <span class="cd-matchup__wr">{{ (m.winRate * 100).toFixed(1) }}%</span>
                       <span class="cd-matchup__games">{{ m.picks }}g</span>
                     </a>
                   }
                 </div>
             } @else {
                 <div class="cd-empty">Collecting matchup data...</div>
+            }
+              </section>
+
+            <!-- Worst Matchups / Counters -->
+              <section class="cd-section">
+                <h2 class="cd-section__title" style="color:#E84057">Countered By</h2>
+            @if (worstMatchups().length > 0) {
+                <div class="cd-matchups">
+                  @for (m of worstMatchups(); track m.opponentChampionId) {
+                    <a class="cd-matchup" [routerLink]="['/champion', m.opponentChampionKey]">
+                      <img class="cd-matchup__img" [src]="gameState.getChampionImageUrl(m.opponentChampionKey + '.png')"
+                        [alt]="m.opponentChampionKey" width="32" height="32" loading="lazy" />
+                      <span class="cd-matchup__name">{{ m.opponentChampionKey }}</span>
+                      <span class="cd-matchup__wr cd-matchup__wr--bad">{{ (m.winRate * 100).toFixed(1) }}%</span>
+                      <span class="cd-matchup__games">{{ m.picks }}g</span>
+                    </a>
+                  }
+                </div>
+            } @else {
+                <div class="cd-empty">Collecting counter data...</div>
             }
               </section>
 
@@ -629,7 +668,19 @@ export class ChampionDetailComponent implements OnInit {
   readonly matchups = signal<MatchupStat[]>([]);
   readonly buildOrders = signal<BuildOrderEntry[]>([]);
   readonly skillOrders = signal<SkillOrderEntry[]>([]);
+  readonly startingItems = signal<StartingItemEntry[]>([]);
   readonly selectedRole = signal<string>('');
+
+  /** Matchups where we WIN (highest WR) — "best against" */
+  readonly bestMatchups = computed(() =>
+    this.matchups().filter(m => m.winRate >= 0.5).slice(0, 5)
+  );
+
+  /** Matchups where we LOSE (lowest WR) — "worst against / counters" */
+  readonly worstMatchups = computed(() => {
+    const sorted = [...this.matchups()].sort((a, b) => a.winRate - b.winRate);
+    return sorted.filter(m => m.winRate < 0.5).slice(0, 5);
+  });
   readonly loading = signal(true);
   readonly spellKeys = SPELL_KEYS;
   readonly levelNumbers = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -704,6 +755,7 @@ export class ChampionDetailComponent implements OnInit {
     this.matchups.set([]);
     this.buildOrders.set([]);
     this.skillOrders.set([]);
+    this.startingItems.set([]);
 
     this.api.getChampionBuildStats(championId, lane).subscribe({
       next: (stats) => this.buildStats.set(stats),
@@ -722,6 +774,9 @@ export class ChampionDetailComponent implements OnInit {
     });
     this.api.getChampionSkillOrders(championId, lane).subscribe({
       next: (so) => this.skillOrders.set(so),
+    });
+    this.api.getChampionStartingItems(championId, lane).subscribe({
+      next: (si) => this.startingItems.set(si),
     });
   }
 
@@ -779,6 +834,10 @@ export class ChampionDetailComponent implements OnInit {
     a.download = `DraftSense_${d.id}_${this.selectedRole()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  parseItemIds(ids: string): number[] {
+    return ids.split(',').map(Number).filter(id => id > 0);
   }
 
   perkIconUrl(perkId: number): string {

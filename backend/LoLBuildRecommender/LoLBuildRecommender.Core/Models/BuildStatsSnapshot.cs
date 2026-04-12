@@ -102,6 +102,18 @@ public class SkillOrderEntry
 }
 
 /// <summary>
+/// Starting items purchased in first 90 seconds.
+/// </summary>
+public class StartingItemEntry
+{
+    /// <summary>Comma-separated item IDs, sorted ascending.</summary>
+    public string ItemIds { get; set; } = string.Empty;
+    public int Picks { get; set; }
+    public int Wins { get; set; }
+    public double WinRate => Picks == 0 ? 0 : (double)Wins / Picks;
+}
+
+/// <summary>
 /// Tier list entry: aggregated champion performance in a specific role on the current patch.
 /// Picks = total games observed, Wins = games won. Pick rate is computed client-side
 /// from total games in the patch.
@@ -114,4 +126,7 @@ public class TierListEntry
     public int Picks { get; set; }
     public int Wins { get; set; }
     public double WinRate => Picks == 0 ? 0 : (double)Wins / Picks;
+    public int Bans { get; set; }
+    public int TotalMatches { get; set; }
+    public double BanRate => TotalMatches == 0 ? 0 : (double)Bans / TotalMatches;
 }

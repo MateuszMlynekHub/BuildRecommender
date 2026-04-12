@@ -185,3 +185,35 @@ public class SkillOrderStatEntity
     public int Wins { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
+
+/// <summary>Tracks how often each champion is banned per patch.</summary>
+public class BanStatEntity
+{
+    public int Id { get; set; }
+    public string Patch { get; set; } = string.Empty;
+    public int ChampionId { get; set; }
+    public string ChampionKey { get; set; } = string.Empty;
+    /// <summary>Number of matches where this champion was banned.</summary>
+    public int Bans { get; set; }
+    /// <summary>Total matches observed (denominator for ban rate).</summary>
+    public int TotalMatches { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Starting items purchased in the first 90 seconds of the game.
+/// Comma-separated item IDs sorted ascending, e.g. "1055,2003,2003" = Doran's Blade + 2 Health Pots.
+/// </summary>
+public class StartingItemStatEntity
+{
+    public int Id { get; set; }
+    public string Patch { get; set; } = string.Empty;
+    public int ChampionId { get; set; }
+    public string ChampionKey { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    /// <summary>Comma-separated starting item IDs, sorted ascending.</summary>
+    public string ItemIds { get; set; } = string.Empty;
+    public int Picks { get; set; }
+    public int Wins { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}

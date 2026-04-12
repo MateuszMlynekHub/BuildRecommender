@@ -19,6 +19,8 @@ public class BuildStatsDbContext : DbContext
     public DbSet<MatchupStatEntity> MatchupStats => Set<MatchupStatEntity>();
     public DbSet<BuildOrderStatEntity> BuildOrderStats => Set<BuildOrderStatEntity>();
     public DbSet<SkillOrderStatEntity> SkillOrderStats => Set<SkillOrderStatEntity>();
+    public DbSet<StartingItemStatEntity> StartingItemStats => Set<StartingItemStatEntity>();
+    public DbSet<BanStatEntity> BanStats => Set<BanStatEntity>();
     public DbSet<CrawlMetadataEntity> CrawlMetadata => Set<CrawlMetadataEntity>();
     public DbSet<ProcessedMatchEntity> ProcessedMatches => Set<ProcessedMatchEntity>();
 
@@ -101,6 +103,25 @@ public class BuildStatsDbContext : DbContext
             e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role });
             e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role, x.EarlySkillSequence })
                 .IsUnique();
+        });
+
+        mb.Entity<BanStatEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Patch).HasMaxLength(16).IsRequired();
+            e.Property(x => x.ChampionKey).HasMaxLength(64).IsRequired();
+            e.HasIndex(x => new { x.Patch, x.ChampionId }).IsUnique();
+        });
+
+        mb.Entity<StartingItemStatEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Patch).HasMaxLength(16).IsRequired();
+            e.Property(x => x.ChampionKey).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Role).HasMaxLength(16).IsRequired();
+            e.Property(x => x.ItemIds).HasMaxLength(128).IsRequired();
+            e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role });
+            e.HasIndex(x => new { x.Patch, x.ChampionId, x.Role, x.ItemIds }).IsUnique();
         });
 
         mb.Entity<CrawlMetadataEntity>(e =>

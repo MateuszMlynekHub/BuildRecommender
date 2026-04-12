@@ -201,6 +201,33 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ""IX_SkillOrderStats_Patch_ChampionId_Role""
         ON ""SkillOrderStats"" (""Patch"", ""ChampionId"", ""Role"")");
 
+    // --- BanStats table ---
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE TABLE IF NOT EXISTS ""BanStats"" (
+            ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_BanStats"" PRIMARY KEY AUTOINCREMENT,
+            ""Patch"" TEXT NOT NULL, ""ChampionId"" INTEGER NOT NULL,
+            ""ChampionKey"" TEXT NOT NULL,
+            ""Bans"" INTEGER NOT NULL, ""TotalMatches"" INTEGER NOT NULL,
+            ""UpdatedAt"" TEXT NOT NULL
+        )");
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_BanStats_Patch_ChampionId""
+        ON ""BanStats"" (""Patch"", ""ChampionId"")");
+
+    // --- StartingItemStats table ---
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE TABLE IF NOT EXISTS ""StartingItemStats"" (
+            ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_StartingItemStats"" PRIMARY KEY AUTOINCREMENT,
+            ""Patch"" TEXT NOT NULL, ""ChampionId"" INTEGER NOT NULL,
+            ""ChampionKey"" TEXT NOT NULL, ""Role"" TEXT NOT NULL,
+            ""ItemIds"" TEXT NOT NULL,
+            ""Picks"" INTEGER NOT NULL, ""Wins"" INTEGER NOT NULL,
+            ""UpdatedAt"" TEXT NOT NULL
+        )");
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE INDEX IF NOT EXISTS ""IX_StartingItemStats_Patch_ChampionId_Role""
+        ON ""StartingItemStats"" (""Patch"", ""ChampionId"", ""Role"")");
+
     // Forward-compatible ALTER — add DataVersion column to CrawlMetadata if absent.
     // SQLite doesn't support IF NOT EXISTS on ALTER TABLE ADD COLUMN, so we check
     // the column's presence via pragma_table_info first. Pre-checking (instead of

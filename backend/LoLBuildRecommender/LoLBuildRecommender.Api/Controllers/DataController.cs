@@ -111,6 +111,13 @@ public class DataController : ControllerBase
         return Ok(spells);
     }
 
+    [HttpGet("buildstats/{championId:int}/{lane}/startingitems")]
+    public async Task<ActionResult> GetChampionStartingItems(int championId, string lane, [FromQuery] int count = 5)
+    {
+        var items = await _buildStats.GetStartingItemsAsync(championId, lane.ToUpperInvariant(), count);
+        return Ok(items);
+    }
+
     [HttpGet("buildstats/{championId:int}/{lane}/buildorder")]
     public async Task<ActionResult> GetChampionBuildOrder(int championId, string lane, [FromQuery] int count = 5)
     {

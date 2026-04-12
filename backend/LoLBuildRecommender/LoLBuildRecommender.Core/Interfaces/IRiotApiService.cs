@@ -34,10 +34,11 @@ public interface IRiotApiService
     Task<MatchDetails?> GetMatchDetailsAsync(string matchId, string platform, CancellationToken ct = default);
 
     /// <summary>
-    /// Returns skill level-up events from the match timeline. Each entry is (participantId, skillSlot, level).
-    /// Only the first 3 level-ups per participant are returned (levels 1-3 skill order).
-    /// Returns empty array if timeline is unavailable.
+    /// Extracts key events from match timeline in a single API call:
+    /// - Skill level-ups (first 3 per participant for early skill order)
+    /// - Item purchases (ordered by timestamp for build order + starting items)
+    /// Returns null if timeline unavailable.
     /// </summary>
-    Task<List<(int participantId, int skillSlot)>> GetEarlySkillOrderAsync(
+    Task<MatchTimelineExtract?> GetMatchTimelineExtractAsync(
         string matchId, string platform, CancellationToken ct = default);
 }

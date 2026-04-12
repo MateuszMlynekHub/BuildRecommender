@@ -66,6 +66,15 @@ export const routes: Routes = [
       ),
   },
 
+  // Summoner search page.
+  {
+    path: 'summoner',
+    loadComponent: () =>
+      import('./features/summoner/summoner-search.component').then(
+        (m) => m.SummonerSearchComponent,
+      ),
+  },
+
   // Summoner profile — player lookup with match history.
   {
     path: 'summoner/:region/:name',

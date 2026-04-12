@@ -138,6 +138,13 @@ export interface SkillOrderEntry {
   winRate: number;
 }
 
+export interface StartingItemEntry {
+  itemIds: string;
+  picks: number;
+  wins: number;
+  winRate: number;
+}
+
 export interface TierListEntry {
   championId: number;
   championKey: string;
@@ -145,4 +152,7 @@ export interface TierListEntry {
   picks: number;
   wins: number;
   winRate: number;
+  bans: number;
+  totalMatches: number;
+  banRate: number;
 }

@@ -116,6 +116,21 @@ public class MatchInfoDto
 
     [JsonPropertyName("participants")]
     public List<MatchParticipantDto> Participants { get; set; } = [];
+
+    [JsonPropertyName("teams")]
+    public List<MatchTeamDto> Teams { get; set; } = [];
+}
+
+public class MatchTeamDto
+{
+    [JsonPropertyName("bans")]
+    public List<MatchBanDto> Bans { get; set; } = [];
+}
+
+public class MatchBanDto
+{
+    [JsonPropertyName("championId")]
+    public int ChampionId { get; set; }
 }
 
 public class MatchParticipantDto

@@ -20,6 +20,12 @@ public class BuildStatsOptions
     public string Region { get; set; } = "euw1";
 
     /// <summary>
+    /// All regions to crawl. Crawler iterates through each region per cycle.
+    /// When empty, falls back to single Region. Set via BuildStats__Regions__0=euw1, etc.
+    /// </summary>
+    public string[] Regions { get; set; } = ["euw1", "na1", "kr", "eun1", "br1", "jp1", "oc1", "tr1"];
+
+    /// <summary>
     /// Include Challenger ladder in the player pool (~200 players per region).
     /// Pros: top-meta picks. Cons: narrow champion diversity.
     /// </summary>
