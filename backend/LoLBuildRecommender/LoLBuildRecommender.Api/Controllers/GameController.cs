@@ -170,105 +170,110 @@ public class GameController : ControllerBase
         try { matchIds = await _riotApi.GetRankedMatchIdsAsync(puuid, region, 20); }
         catch { matchIds = []; }
 
-        var matches = new List<object>();
         var champions = await _gameData.GetChampionsAsync();
         var version = await _gameData.GetCurrentVersionAsync();
+
+        // Collect raw match data for stats computation BEFORE serialization
+        var rawMatchData = new List<(string matchId, string gameVersion, List<MatchParticipant> participants)>();
 
         foreach (var matchId in matchIds.Take(10))
         {
             try
             {
                 var match = await _riotApi.GetMatchDetailsAsync(matchId, region);
-                if (match is null) continue;
-
-                matches.Add(new
-                {
-                    matchId,
-                    gameVersion = match.GameVersion,
-                    participants = match.Participants.Select(p =>
-                    {
-                        champions.TryGetValue(p.ChampionId, out var champ);
-                        return new
-                        {
-                            puuid = p.Puuid,
-                            championId = p.ChampionId,
-                            championName = champ?.Name ?? "Unknown",
-                            championImage = champ is not null
-                                ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champ.ImageFileName}"
-                                : "",
-                            teamPosition = p.TeamPosition,
-                            teamId = p.TeamId,
-                            kills = p.Kills,
-                            deaths = p.Deaths,
-                            assists = p.Assists,
-                            cs = p.TotalMinionsKilled + p.NeutralMinionsKilled,
-                            wardsPlaced = p.WardsPlaced,
-                            damage = p.TotalDamageDealtToChampions,
-                            gold = p.GoldEarned,
-                            level = p.ChampLevel,
-                            win = p.Win,
-                            items = p.Items.Where(id => id != 0).ToArray(),
-                        };
-                    }).ToList(),
-                });
+                if (match is not null)
+                    rawMatchData.Add((matchId, match.GameVersion, match.Participants));
             }
-            catch { /* skip failed match fetches */ }
+            catch { }
         }
 
-        // Compute stats from match data
-        var myMatches = matches.Cast<dynamic>()
-            .Select(m => ((IEnumerable<dynamic>)m.participants).FirstOrDefault(pp => pp.puuid == puuid))
-            .Where(me => me is not null)
+        // Compute stats from strongly-typed data
+        var myParticipants = rawMatchData
+            .Select(m => m.participants.FirstOrDefault(p => p.Puuid == puuid))
+            .Where(p => p is not null)
+            .Cast<MatchParticipant>()
             .ToList();
 
-        // Top 5 champions played
-        var topChampions = myMatches
-            .GroupBy(me => new { me.championId, me.championName, me.championImage })
-            .Select(g => new {
-                championId = (int)g.Key.championId,
-                championName = (string)g.Key.championName,
-                championImage = (string)g.Key.championImage,
-                games = g.Count(),
-                wins = g.Count(m => (bool)m.win),
+        var topChampions = myParticipants
+            .GroupBy(p => p.ChampionId)
+            .Select(g =>
+            {
+                champions.TryGetValue(g.Key, out var champ);
+                return new
+                {
+                    championId = g.Key,
+                    championName = champ?.Name ?? "Unknown",
+                    championImage = champ is not null
+                        ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champ.ImageFileName}" : "",
+                    games = g.Count(),
+                    wins = g.Count(p => p.Win),
+                };
             })
             .OrderByDescending(c => c.games)
             .Take(5)
             .ToList();
 
-        // Games per lane
-        var laneStats = myMatches
-            .Where(me => !string.IsNullOrEmpty((string)me.teamPosition))
-            .GroupBy(me => (string)me.teamPosition)
+        var laneStats = myParticipants
+            .Where(p => !string.IsNullOrEmpty(p.TeamPosition))
+            .GroupBy(p => p.TeamPosition)
             .Select(g => new { lane = g.Key, games = g.Count() })
             .OrderByDescending(l => l.games)
             .ToList();
 
-        // Recently played with — teammates across all matches
-        var recentlyPlayedWith = new Dictionary<string, (string name, int games, int wins)>();
-        foreach (var matchObj in matches.Cast<dynamic>())
+        // Recently played with
+        var playedWithDict = new Dictionary<string, (string champName, int games, int wins)>();
+        foreach (var (_, _, participants) in rawMatchData)
         {
-            var participants = (IEnumerable<dynamic>)matchObj.participants;
-            var me = participants.FirstOrDefault(pp => (string)pp.puuid == puuid);
+            var me = participants.FirstOrDefault(p => p.Puuid == puuid);
             if (me is null) continue;
-            var myTeam = (int)me.teamId;
-            var myWin = (bool)me.win;
             foreach (var teammate in participants)
             {
-                if ((string)teammate.puuid == puuid) continue;
-                if ((int)teammate.teamId != myTeam) continue;
-                var tPuuid = (string)teammate.puuid;
-                var tName = (string)teammate.championName;
-                if (!recentlyPlayedWith.TryGetValue(tPuuid, out var entry))
-                    entry = (tName, 0, 0);
-                recentlyPlayedWith[tPuuid] = (tName, entry.games + 1, entry.wins + (myWin ? 1 : 0));
+                if (teammate.Puuid == puuid || teammate.TeamId != me.TeamId) continue;
+                if (string.IsNullOrEmpty(teammate.Puuid)) continue;
+                champions.TryGetValue(teammate.ChampionId, out var champInfo);
+                var name = champInfo?.Name ?? "Unknown";
+                if (!playedWithDict.TryGetValue(teammate.Puuid, out var entry))
+                    entry = (name, 0, 0);
+                playedWithDict[teammate.Puuid] = (name, entry.games + 1, entry.wins + (me.Win ? 1 : 0));
             }
         }
-        var playedWith = recentlyPlayedWith
+        var playedWith = playedWithDict
             .Where(kv => kv.Value.games >= 2)
             .OrderByDescending(kv => kv.Value.games)
             .Take(10)
-            .Select(kv => new { puuid = kv.Key, lastChampion = kv.Value.name, games = kv.Value.games, wins = kv.Value.wins })
+            .Select(kv => new { puuid = kv.Key, lastChampion = kv.Value.champName, games = kv.Value.games, wins = kv.Value.wins })
             .ToList();
+
+        // Serialize matches for response
+        var matches = rawMatchData.Select(m => new
+        {
+            matchId = m.matchId,
+            gameVersion = m.gameVersion,
+            participants = m.participants.Select(p =>
+            {
+                champions.TryGetValue(p.ChampionId, out var champ);
+                return new
+                {
+                    puuid = p.Puuid,
+                    championId = p.ChampionId,
+                    championName = champ?.Name ?? "Unknown",
+                    championImage = champ is not null
+                        ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champ.ImageFileName}" : "",
+                    teamPosition = p.TeamPosition,
+                    teamId = p.TeamId,
+                    kills = p.Kills,
+                    deaths = p.Deaths,
+                    assists = p.Assists,
+                    cs = p.TotalMinionsKilled + p.NeutralMinionsKilled,
+                    wardsPlaced = p.WardsPlaced,
+                    damage = p.TotalDamageDealtToChampions,
+                    gold = p.GoldEarned,
+                    level = p.ChampLevel,
+                    win = p.Win,
+                    items = p.Items.Where(id => id != 0).ToArray(),
+                };
+            }).ToList(),
+        }).ToList();
 
         return Ok(new
         {

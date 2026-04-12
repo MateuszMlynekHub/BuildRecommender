@@ -105,18 +105,7 @@ const TIER_COLORS: Record<string, string> = {
                 </div>
               }
 
-              <!-- Lane distribution -->
-              @if (p.laneStats.length > 0) {
-                <div class="sp-top">
-                  <div class="sp-top__hdr">Preferred Role</div>
-                  @for (l of p.laneStats; track l.lane) {
-                    <div class="sp-top__row">
-                      <span class="sp-top__name">{{ l.lane }}</span>
-                      <span class="sp-top__games">{{ l.games }} games</span>
-                    </div>
-                  }
-                </div>
-              }
+              <!-- Lane distribution removed from sidebar — now in summary -->
 
               <!-- Recently Played With -->
               @if (p.recentlyPlayedWith && p.recentlyPlayedWith.length > 0) {
@@ -160,6 +149,21 @@ const TIER_COLORS: Record<string, string> = {
                     <div>Gold <strong>{{ (s.avgGold/1000).toFixed(1) }}k</strong></div>
                   </div>
                 </div>
+
+                <!-- Lane distribution bar chart -->
+                @if (p.laneStats.length > 0) {
+                  <div class="sp-lanes">
+                    @for (l of p.laneStats; track l.lane) {
+                      <div class="sp-lane">
+                        <span class="sp-lane__name">{{ l.lane }}</span>
+                        <div class="sp-lane__bar">
+                          <div class="sp-lane__fill" [style.width.%]="lanePct(l.games)"></div>
+                        </div>
+                        <span class="sp-lane__val">{{ l.games }}</span>
+                      </div>
+                    }
+                  </div>
+                }
               }
 
               <div class="sp-ml">
@@ -256,6 +260,12 @@ const TIER_COLORS: Record<string, string> = {
     .sp-sum__ratio{font-size:.68rem;color:var(--lol-text-muted)}
     .sp-sum__ex{margin-left:auto;font-size:.65rem;color:var(--lol-text-muted);display:flex;flex-direction:column;gap:.1rem}
     .sp-sum__ex strong{color:var(--lol-gold-1)}
+    .sp-lanes{display:flex;gap:.4rem;padding:.5rem .8rem;background:rgba(1,10,19,.6);border:1px solid var(--lol-gold-5);border-radius:2px;margin-bottom:.6rem;flex-wrap:wrap}
+    .sp-lane{display:flex;align-items:center;gap:.3rem;flex:1;min-width:100px}
+    .sp-lane__name{font-size:.6rem;color:var(--lol-text-muted);width:50px;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
+    .sp-lane__bar{flex:1;height:8px;background:rgba(1,10,19,.5);border-radius:4px;overflow:hidden}
+    .sp-lane__fill{height:100%;background:var(--lol-cyan);border-radius:4px;transition:width .4s}
+    .sp-lane__val{font-size:.6rem;color:var(--lol-gold-1);font-weight:600;min-width:16px;text-align:right}
 
     /* Match list */
     .sp-ml__hdr{font-family:'Cinzel',serif;font-size:.75rem;color:var(--lol-gold-2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.4rem}
@@ -355,4 +365,10 @@ export class SummonerProfileComponent implements OnInit {
   kr(p: Participant) { return ((p.kills+p.assists)/(p.deaths||1)).toFixed(2); }
   wr(e: RankedEntry) { const t=e.wins+e.losses; return t>0?(e.wins/t)*100:0; }
   tc(tier: string) { return TIER_COLORS[tier]??'var(--lol-gold-3)'; }
+  lanePct(games: number): number {
+    const p = this.profile();
+    if (!p?.laneStats?.length) return 0;
+    const max = Math.max(...p.laneStats.map(l => l.games));
+    return max > 0 ? (games / max) * 100 : 0;
+  }
 }
