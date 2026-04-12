@@ -70,6 +70,12 @@ public record MatchParticipant
     public int Kills { get; init; }
     public int Deaths { get; init; }
     public int Assists { get; init; }
+    public int TotalMinionsKilled { get; init; }
+    public int NeutralMinionsKilled { get; init; }
+    public int WardsPlaced { get; init; }
+    public long TotalDamageDealtToChampions { get; init; }
+    public int GoldEarned { get; init; }
+    public int ChampLevel { get; init; }
 
     /// <summary>Final 6 item slots (slot 0-5), plus slot 6 is trinket which we ignore.</summary>
     public int[] Items { get; init; } = [];
@@ -91,6 +97,17 @@ public record MatchParticipant
     public int StatDefense { get; init; }
 
     public bool Win { get; init; }
+}
+
+/// <summary>Ranked queue entry — Solo/Duo or Flex.</summary>
+public record RankedEntry
+{
+    public string QueueType { get; init; } = string.Empty;
+    public string Tier { get; init; } = string.Empty;
+    public string Rank { get; init; } = string.Empty;
+    public int LeaguePoints { get; init; }
+    public int Wins { get; init; }
+    public int Losses { get; init; }
 }
 
 /// <summary>

@@ -114,6 +114,9 @@ public class MatchInfoDto
     [JsonPropertyName("queueId")]
     public int QueueId { get; set; }
 
+    [JsonPropertyName("gameDuration")]
+    public long GameDuration { get; set; }
+
     [JsonPropertyName("participants")]
     public List<MatchParticipantDto> Participants { get; set; } = [];
 
@@ -152,6 +155,24 @@ public class MatchParticipantDto
 
     [JsonPropertyName("assists")]
     public int Assists { get; set; }
+
+    [JsonPropertyName("totalMinionsKilled")]
+    public int TotalMinionsKilled { get; set; }
+
+    [JsonPropertyName("neutralMinionsKilled")]
+    public int NeutralMinionsKilled { get; set; }
+
+    [JsonPropertyName("wardsPlaced")]
+    public int WardsPlaced { get; set; }
+
+    [JsonPropertyName("totalDamageDealtToChampions")]
+    public long TotalDamageDealtToChampions { get; set; }
+
+    [JsonPropertyName("goldEarned")]
+    public int GoldEarned { get; set; }
+
+    [JsonPropertyName("champLevel")]
+    public int ChampLevel { get; set; }
 
     [JsonPropertyName("teamPosition")]
     public string TeamPosition { get; set; } = string.Empty;

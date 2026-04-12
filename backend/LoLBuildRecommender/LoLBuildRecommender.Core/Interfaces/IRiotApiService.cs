@@ -33,6 +33,12 @@ public interface IRiotApiService
     /// <summary>Returns final itemization + winner for each participant in a match.</summary>
     Task<MatchDetails?> GetMatchDetailsAsync(string matchId, string platform, CancellationToken ct = default);
 
+    /// <summary>Get summoner ID from PUUID (needed for League-v4 rank lookup).</summary>
+    Task<string?> GetSummonerIdByPuuidAsync(string puuid, string platform, CancellationToken ct = default);
+
+    /// <summary>Get ranked league entries (Solo/Duo, Flex) for a summoner.</summary>
+    Task<List<RankedEntry>> GetLeagueEntriesAsync(string summonerId, string platform, CancellationToken ct = default);
+
     /// <summary>
     /// Extracts key events from match timeline in a single API call:
     /// - Skill level-ups (first 3 per participant for early skill order)

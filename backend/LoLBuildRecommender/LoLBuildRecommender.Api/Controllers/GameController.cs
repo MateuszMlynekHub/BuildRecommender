@@ -140,16 +140,26 @@ public class GameController : ControllerBase
         try { puuid = await _riotApi.GetPuuidByRiotIdAsync(gameName, tagLine, region); }
         catch (HttpRequestException ex) { return MapRiotError(ex, "resolve Riot ID"); }
 
-        // Fetch recent match IDs (last 10)
+        // Fetch rank data
+        List<RankedEntry> rankedEntries = [];
+        try
+        {
+            var summonerId = await _riotApi.GetSummonerIdByPuuidAsync(puuid, region);
+            if (summonerId is not null)
+                rankedEntries = await _riotApi.GetLeagueEntriesAsync(summonerId, region);
+        }
+        catch { /* rank fetch is non-critical */ }
+
+        // Fetch recent match IDs (last 20)
         string[] matchIds;
-        try { matchIds = await _riotApi.GetRankedMatchIdsAsync(puuid, region, 10); }
+        try { matchIds = await _riotApi.GetRankedMatchIdsAsync(puuid, region, 20); }
         catch { matchIds = []; }
 
         var matches = new List<object>();
         var champions = await _gameData.GetChampionsAsync();
         var version = await _gameData.GetCurrentVersionAsync();
 
-        foreach (var matchId in matchIds.Take(8))
+        foreach (var matchId in matchIds.Take(10))
         {
             try
             {
@@ -176,6 +186,11 @@ public class GameController : ControllerBase
                             kills = p.Kills,
                             deaths = p.Deaths,
                             assists = p.Assists,
+                            cs = p.TotalMinionsKilled + p.NeutralMinionsKilled,
+                            wardsPlaced = p.WardsPlaced,
+                            damage = p.TotalDamageDealtToChampions,
+                            gold = p.GoldEarned,
+                            level = p.ChampLevel,
                             win = p.Win,
                             items = p.Items.Where(id => id != 0).ToArray(),
                         };
@@ -191,6 +206,7 @@ public class GameController : ControllerBase
             gameName,
             tagLine,
             region,
+            rankedEntries,
             matchCount = matchIds.Length,
             recentMatches = matches,
         });

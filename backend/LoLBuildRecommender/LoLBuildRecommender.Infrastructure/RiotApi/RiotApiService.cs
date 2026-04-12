@@ -104,6 +104,12 @@ public class RiotApiService : IRiotApiService
                 Kills = p.Kills,
                 Deaths = p.Deaths,
                 Assists = p.Assists,
+                TotalMinionsKilled = p.TotalMinionsKilled,
+                NeutralMinionsKilled = p.NeutralMinionsKilled,
+                WardsPlaced = p.WardsPlaced,
+                TotalDamageDealtToChampions = p.TotalDamageDealtToChampions,
+                GoldEarned = p.GoldEarned,
+                ChampLevel = p.ChampLevel,
                 Items = new[] { p.Item0, p.Item1, p.Item2, p.Item3, p.Item4, p.Item5 },
                 Summoner1Id = p.Summoner1Id,
                 Summoner2Id = p.Summoner2Id,
@@ -173,6 +179,35 @@ public class RiotApiService : IRiotApiService
                 PickTurn = b.PickTurn,
             }).ToList(),
         };
+    }
+
+    public async Task<string?> GetSummonerIdByPuuidAsync(string puuid, string platform, CancellationToken ct = default)
+    {
+        var client = _httpClientFactory.CreateClient("RiotApi");
+        var url = $"https://{platform}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}";
+        var response = await client.GetAsync(url, ct);
+        if (!response.IsSuccessStatusCode) return null;
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
+        return json.TryGetProperty("id", out var id) ? id.GetString() : null;
+    }
+
+    public async Task<List<RankedEntry>> GetLeagueEntriesAsync(string summonerId, string platform, CancellationToken ct = default)
+    {
+        var client = _httpClientFactory.CreateClient("RiotApi");
+        var url = $"https://{platform}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summonerId}";
+        var response = await client.GetAsync(url, ct);
+        if (!response.IsSuccessStatusCode) return [];
+        var dtos = await response.Content.ReadFromJsonAsync<List<LeagueEntryFullDto>>(cancellationToken: ct);
+        if (dtos is null) return [];
+        return dtos.Select(d => new RankedEntry
+        {
+            QueueType = d.QueueType,
+            Tier = d.Tier,
+            Rank = d.Rank,
+            LeaguePoints = d.LeaguePoints,
+            Wins = d.Wins,
+            Losses = d.Losses,
+        }).ToList();
     }
 
     public async Task<MatchTimelineExtract?> GetMatchTimelineExtractAsync(
