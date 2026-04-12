@@ -44,9 +44,9 @@ public class BuildStatsService : IBuildStatsService
         // previous-patch data can't leak into recommendations.
         var rows = await db.ItemStats
             .AsNoTracking()
-            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
-            .OrderByDescending(s => s.Picks)
-            .ThenByDescending(s => s.Wins)
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane && s.Picks >= 5)
+            .OrderByDescending(s => (double)s.Wins / s.Picks)
+            .ThenByDescending(s => s.Picks)
             .Take(count)
             .Select(r => new ItemStat
             {
@@ -68,9 +68,9 @@ public class BuildStatsService : IBuildStatsService
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         return await db.RuneStats.AsNoTracking()
-            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
-            .OrderByDescending(s => s.Picks)
-            .ThenByDescending(s => s.Wins)
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane && s.Picks >= 5)
+            .OrderByDescending(s => (double)s.Wins / s.Picks)
+            .ThenByDescending(s => s.Picks)
             .Take(count)
             .Select(r => new RunePage
             {
@@ -90,9 +90,9 @@ public class BuildStatsService : IBuildStatsService
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         return await db.SpellStats.AsNoTracking()
-            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
-            .OrderByDescending(s => s.Picks)
-            .ThenByDescending(s => s.Wins)
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane && s.Picks >= 5)
+            .OrderByDescending(s => (double)s.Wins / s.Picks)
+            .ThenByDescending(s => s.Picks)
             .Take(count)
             .Select(r => new SpellSet
             {
@@ -110,8 +110,9 @@ public class BuildStatsService : IBuildStatsService
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         return await db.MatchupStats.AsNoTracking()
-            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane)
-            .OrderByDescending(s => s.Picks)
+            .Where(s => s.Patch == patch && s.ChampionId == championId && s.Role == lane && s.Picks >= 3)
+            .OrderByDescending(s => (double)s.Wins / s.Picks)
+            .ThenByDescending(s => s.Picks)
             .Take(count)
             .Select(r => new MatchupStat
             {
