@@ -140,16 +140,6 @@ public class GameController : ControllerBase
         try { puuid = await _riotApi.GetPuuidByRiotIdAsync(gameName, tagLine, region); }
         catch (HttpRequestException ex) { return MapRiotError(ex, "resolve Riot ID"); }
 
-        // Fetch league entries for rank info
-        object? rankInfo = null;
-        try
-        {
-            var client = _riotApi as RiotApiService;
-            // Use the summoner PUUID to get league entries
-            // Riot League-v4 requires summonerId, not PUUID. We'll fetch via summoner endpoint.
-        }
-        catch { /* rank fetch is non-critical */ }
-
         // Fetch recent match IDs (last 10)
         string[] matchIds;
         try { matchIds = await _riotApi.GetRankedMatchIdsAsync(puuid, region, 10); }
