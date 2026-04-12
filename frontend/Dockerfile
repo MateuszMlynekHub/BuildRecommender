@@ -13,7 +13,7 @@
 #   docker build -f frontend/Dockerfile -t lolbuild-web:latest frontend/
 #
 # ---------- Stage 1: build ----------
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /src
 
 # Copy only the manifest files first so `npm ci` can cache node_modules
