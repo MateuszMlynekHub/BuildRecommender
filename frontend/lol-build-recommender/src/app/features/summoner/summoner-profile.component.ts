@@ -148,22 +148,21 @@ const TIER_COLORS: Record<string, string> = {
                     <div>DMG <strong>{{ (s.avgDmg/1000).toFixed(1) }}k</strong></div>
                     <div>Gold <strong>{{ (s.avgGold/1000).toFixed(1) }}k</strong></div>
                   </div>
-                </div>
-
-                <!-- Lane distribution bar chart -->
-                @if (p.laneStats.length > 0) {
-                  <div class="sp-lanes">
-                    @for (l of p.laneStats; track l.lane) {
-                      <div class="sp-lane">
-                        <span class="sp-lane__name">{{ l.lane }}</span>
-                        <div class="sp-lane__bar">
-                          <div class="sp-lane__fill" [style.width.%]="lanePct(l.games)"></div>
+                  <!-- Lane bar chart inside summary -->
+                  @if (p.laneStats.length > 0) {
+                    <div class="sp-lanes">
+                      @for (l of p.laneStats; track l.lane) {
+                        <div class="sp-lane">
+                          <span class="sp-lane__name">{{ l.lane }}</span>
+                          <div class="sp-lane__bar">
+                            <div class="sp-lane__fill" [style.width.%]="lanePct(l.games)"></div>
+                          </div>
+                          <span class="sp-lane__val">{{ l.games }}</span>
                         </div>
-                        <span class="sp-lane__val">{{ l.games }}</span>
-                      </div>
-                    }
-                  </div>
-                }
+                      }
+                    </div>
+                  }
+                </div>
               }
 
               <div class="sp-ml">
@@ -260,7 +259,7 @@ const TIER_COLORS: Record<string, string> = {
     .sp-sum__ratio{font-size:.68rem;color:var(--lol-text-muted)}
     .sp-sum__ex{margin-left:auto;font-size:.65rem;color:var(--lol-text-muted);display:flex;flex-direction:column;gap:.1rem}
     .sp-sum__ex strong{color:var(--lol-gold-1)}
-    .sp-lanes{display:flex;gap:.4rem;padding:.5rem .8rem;background:rgba(1,10,19,.6);border:1px solid var(--lol-gold-5);border-radius:2px;margin-bottom:.6rem;flex-wrap:wrap}
+    .sp-lanes{display:flex;gap:.4rem;width:100%;padding-top:.5rem;border-top:1px solid var(--lol-gold-5);margin-top:.5rem;flex-wrap:wrap}
     .sp-lane{display:flex;align-items:center;gap:.3rem;flex:1;min-width:100px}
     .sp-lane__name{font-size:.6rem;color:var(--lol-text-muted);width:50px;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
     .sp-lane__bar{flex:1;height:8px;background:rgba(1,10,19,.5);border-radius:4px;overflow:hidden}

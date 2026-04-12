@@ -284,8 +284,9 @@ public class BuildStatsService : IBuildStatsService
             p => (p.ChampionId, p.Role),
             p => (p.Picks, WinRate: p.Picks > 0 ? (double)p.Wins / p.Picks : 0));
 
+        // Only include champions that have data in BOTH patches for meaningful comparison
         var result = currentData
-            .Where(c => c.Picks >= 5) // minimum sample size
+            .Where(c => c.Picks >= 5 && prevByKey.ContainsKey((c.ChampionId, c.Role)))
             .Select(c =>
             {
                 var currentWr = c.Picks > 0 ? (double)c.Wins / c.Picks : 0;
