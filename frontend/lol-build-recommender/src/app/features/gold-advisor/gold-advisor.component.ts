@@ -37,13 +37,18 @@ const ROLE_LABELS: Record<LaneRole, string> = {
         </div>
 
         <!-- Controls -->
-        <div class="gold-controls">
-          <div class="gold-controls__field">
+        <div class="glass-card p-8 relative mb-8">
+          <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2" style="border-color: var(--lol-gold-3);"></div>
+          <div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2" style="border-color: var(--lol-gold-3);"></div>
+          <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2" style="border-color: var(--lol-gold-3);"></div>
+          <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2" style="border-color: var(--lol-gold-3);"></div>
+
+          <div class="gold-controls__field mb-6">
             <label class="gold-controls__label" for="goldInput">{{ 'goldAdvisor.goldInput' | t }}</label>
             <input
               id="goldInput"
               type="number"
-              class="gold-controls__input"
+              class="lol-input w-full"
               [ngModel]="gold()"
               (ngModelChange)="gold.set($event)"
               (ngModelChange)="fetchRecommendations()"
@@ -52,22 +57,26 @@ const ROLE_LABELS: Record<LaneRole, string> = {
             />
           </div>
 
-          <div class="gold-controls__field">
-            <label class="gold-controls__label">{{ 'goldAdvisor.champion' | t }}</label>
-            <app-lol-select
-              [options]="championOptions()"
-              [value]="selectedChampionId() != null ? '' + selectedChampionId() : ''"
-              (valueChange)="onChampionChange($event)"
-            ></app-lol-select>
-          </div>
+          <div class="gold-controls__row">
+            <div class="gold-controls__field">
+              <label class="gold-controls__label">{{ 'goldAdvisor.champion' | t }}</label>
+              <app-lol-select
+                [options]="championOptions()"
+                [value]="selectedChampionId() != null ? '' + selectedChampionId() : ''"
+                (valueChange)="onChampionChange($event)"
+                [fullWidth]="true"
+              ></app-lol-select>
+            </div>
 
-          <div class="gold-controls__field">
-            <label class="gold-controls__label">{{ 'goldAdvisor.role' | t }}</label>
-            <app-lol-select
-              [options]="roleOptions"
-              [value]="selectedRole() ?? ''"
-              (valueChange)="onRoleChange($event)"
-            ></app-lol-select>
+            <div class="gold-controls__field">
+              <label class="gold-controls__label">{{ 'goldAdvisor.role' | t }}</label>
+              <app-lol-select
+                [options]="roleOptions"
+                [value]="selectedRole() ?? ''"
+                (valueChange)="onRoleChange($event)"
+                [fullWidth]="true"
+              ></app-lol-select>
+            </div>
           </div>
         </div>
 
@@ -140,42 +149,25 @@ const ROLE_LABELS: Record<LaneRole, string> = {
     }
 
     /* Controls */
-    .gold-controls {
+    .gold-controls__row {
       display: flex;
       gap: 1rem;
-      flex-wrap: wrap;
-      margin-bottom: 2rem;
     }
 
     .gold-controls__field {
       display: flex;
       flex-direction: column;
-      flex: 1 1 180px;
+      flex: 1 1 0%;
       min-width: 0;
     }
 
     .gold-controls__label {
       font-family: 'Cinzel', serif;
-      font-size: 0.7rem;
-      letter-spacing: 0.08em;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--lol-gold-3, #c89b3c);
       margin-bottom: 0.35rem;
-    }
-
-    .gold-controls__input {
-      background: rgba(1, 10, 19, 0.9);
-      border: 1px solid var(--lol-gold-5, #463714);
-      border-radius: 4px;
-      color: var(--lol-gold-1, #f0e6d2);
-      padding: 0.55rem 0.75rem;
-      font-size: 0.9rem;
-      outline: none;
-      transition: border-color 0.15s ease;
-    }
-
-    .gold-controls__input:focus {
-      border-color: var(--lol-gold-3, #c89b3c);
     }
 
     /* Loading */
@@ -291,7 +283,7 @@ const ROLE_LABELS: Record<LaneRole, string> = {
     }
 
     @media (max-width: 600px) {
-      .gold-controls {
+      .gold-controls__row {
         flex-direction: column;
       }
     }

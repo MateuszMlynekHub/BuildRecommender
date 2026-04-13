@@ -18,27 +18,32 @@ import { Region } from '../../core/models/region.model';
       <p class="ms-subtitle">{{ 'multisearch.subtitle' | t }}</p>
 
       <div class="ms-input-area">
-        <textarea
-          class="ms-textarea"
-          [(ngModel)]="inputText"
-          [placeholder]="'multisearch.placeholder' | t"
-          rows="5"
-        ></textarea>
+        <div class="ms-field">
+          <label class="ms-label">{{ 'multisearch.placeholder' | t }}</label>
+          <textarea
+            class="ms-textarea"
+            [(ngModel)]="inputText"
+            [placeholder]="'multisearch.placeholder' | t"
+            rows="5"
+          ></textarea>
+        </div>
 
-        <div class="ms-controls">
+        <div class="ms-field">
+          <label class="ms-label">Region</label>
           <app-lol-select
             [options]="regionOptions()"
             [value]="selectedRegion"
             (valueChange)="selectedRegion = $event"
-            size="sm"
+            [fullWidth]="true"
           ></app-lol-select>
-          <button class="ms-search-btn" (click)="search()" [disabled]="loading()">
-            @if (loading()) {
-              <span class="ms-spinner"></span>
-            }
-            {{ 'multisearch.search' | t }}
-          </button>
         </div>
+
+        <button class="btn-gold w-full flex items-center justify-center gap-3" (click)="search()" [disabled]="loading()">
+          @if (loading()) {
+            <span class="ms-spinner"></span>
+          }
+          {{ 'multisearch.search' | t }}
+        </button>
       </div>
 
       @if (results().length > 0) {
@@ -129,19 +134,8 @@ import { Region } from '../../core/models/region.model';
       font-size: 0.85rem; padding: 0.5rem; resize: vertical;
     }
     .ms-textarea::placeholder { color: var(--lol-text-muted); }
-    .ms-controls {
-      display: flex; gap: 0.5rem; margin-top: 0.75rem; align-items: center;
-    }
-    .ms-region-select {
-      background: rgba(0,0,0,0.4); color: var(--lol-gold-3); border: 1px solid var(--lol-gold-5);
-      border-radius: 3px; padding: 0.4rem 0.6rem; font-size: 0.85rem;
-    }
-    .ms-search-btn {
-      background: linear-gradient(135deg, var(--lol-gold-3), var(--lol-gold-5));
-      color: #0a0a0a; border: none; border-radius: 3px; padding: 0.5rem 1.5rem;
-      font-weight: 700; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;
-    }
-    .ms-search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ms-field { margin-bottom: 0.75rem; }
+    .ms-label { display: block; font-size: 0.65rem; font-family: 'Cinzel', serif; text-transform: uppercase; letter-spacing: 0.1em; color: var(--lol-gold-3); font-weight: 600; margin-bottom: 0.35rem; }
     .ms-spinner {
       display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.2);
       border-top-color: #0a0a0a; border-radius: 50%; animation: spin 0.6s linear infinite;

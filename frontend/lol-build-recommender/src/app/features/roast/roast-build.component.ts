@@ -41,21 +41,22 @@ interface RoastItem {
         <div class="roast-form">
           <div class="roast-field">
             <label class="roast-label">{{ 'roast.inputLabel' | t }}</label>
-            <div class="roast-id-row">
-              <input class="roast-input" type="text" [(ngModel)]="gameName" placeholder="Name" />
-              <span class="roast-hash">#</span>
-              <input class="roast-input roast-input--tag" type="text" [(ngModel)]="tagLine" placeholder="Tag" />
+            <div class="flex gap-2 items-stretch">
+              <input class="lol-input min-w-0" style="flex: 7 1 0%;" type="text" [(ngModel)]="gameName" placeholder="Name" (keyup.enter)="analyze()" />
+              <span class="flex items-center px-1 text-gold text-2xl font-display shrink-0">#</span>
+              <input class="lol-input min-w-0 uppercase" style="flex: 3 1 0%;" type="text" [(ngModel)]="tagLine" placeholder="Tag" (keyup.enter)="analyze()" />
             </div>
           </div>
           <div class="roast-field">
+            <label class="roast-label">Region</label>
             <app-lol-select
               [options]="regionOptions()"
               [value]="selectedRegion"
               (valueChange)="selectedRegion = $event"
-              size="sm"
+              [fullWidth]="true"
             ></app-lol-select>
           </div>
-          <button class="roast-analyze-btn" (click)="analyze()" [disabled]="loading()">
+          <button class="btn-gold w-full flex items-center justify-center gap-3" (click)="analyze()" [disabled]="loading()">
             @if (loading()) { <span class="roast-spinner"></span> }
             {{ 'roast.analyze' | t }}
           </button>
@@ -137,27 +138,9 @@ interface RoastItem {
       background: rgba(1,10,19,0.6); border: 1px solid var(--lol-gold-5);
       border-radius: 4px; padding: 1rem; margin-bottom: 1.5rem;
     }
-    .roast-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
-    .roast-field { display: flex; flex-direction: column; gap: 0.25rem; }
-    .roast-label { font-size: 0.75rem; color: var(--lol-gold-3); font-weight: 600; }
-    .roast-id-row { display: flex; align-items: center; gap: 0; }
-    .roast-input {
-      background: rgba(0,0,0,0.3); border: 1px solid var(--lol-gold-5);
-      color: var(--lol-text-primary, #ccc); padding: 0.4rem 0.6rem; font-size: 0.85rem;
-      border-radius: 3px 0 0 3px; width: 150px;
-    }
-    .roast-input--tag { border-radius: 0 3px 3px 0; width: 80px; }
-    .roast-hash { color: var(--lol-gold-3); font-weight: 700; padding: 0 4px; background: rgba(0,0,0,0.3); border-top: 1px solid var(--lol-gold-5); border-bottom: 1px solid var(--lol-gold-5); line-height: 2.1; }
-    .roast-select {
-      background: rgba(0,0,0,0.4); color: var(--lol-gold-3); border: 1px solid var(--lol-gold-5);
-      border-radius: 3px; padding: 0.4rem 0.6rem; font-size: 0.85rem;
-    }
-    .roast-analyze-btn {
-      background: linear-gradient(135deg, #f44336, #d32f2f);
-      color: #fff; border: none; border-radius: 3px; padding: 0.5rem 1.5rem;
-      font-weight: 700; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;
-    }
-    .roast-analyze-btn:disabled { opacity: 0.5; }
+    .roast-form { display: flex; flex-direction: column; gap: 0.75rem; }
+    .roast-field { display: flex; flex-direction: column; gap: 0.35rem; }
+    .roast-label { font-size: 0.65rem; font-family: 'Cinzel', serif; text-transform: uppercase; letter-spacing: 0.1em; color: var(--lol-gold-3); font-weight: 600; }
     .roast-spinner {
       display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
       border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite;

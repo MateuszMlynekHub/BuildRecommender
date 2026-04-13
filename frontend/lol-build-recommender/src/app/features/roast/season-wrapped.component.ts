@@ -49,21 +49,22 @@ interface WrappedData {
             <div class="sw-form">
               <div class="sw-field">
                 <label class="sw-label">Riot ID</label>
-                <div class="sw-id-row">
-                  <input class="sw-input" type="text" [(ngModel)]="gameName" placeholder="Name" />
-                  <span class="sw-hash">#</span>
-                  <input class="sw-input sw-input--tag" type="text" [(ngModel)]="tagLine" placeholder="Tag" />
+                <div class="flex gap-2 items-stretch">
+                  <input class="lol-input min-w-0" style="flex: 7 1 0%;" type="text" [(ngModel)]="gameName" placeholder="Name" (keyup.enter)="generate()" />
+                  <span class="flex items-center px-1 text-gold text-2xl font-display shrink-0">#</span>
+                  <input class="lol-input min-w-0 uppercase" style="flex: 3 1 0%;" type="text" [(ngModel)]="tagLine" placeholder="Tag" (keyup.enter)="generate()" />
                 </div>
               </div>
               <div class="sw-field">
+                <label class="sw-label">Region</label>
                 <app-lol-select
                   [options]="regionOptions()"
                   [value]="selectedRegion"
                   (valueChange)="selectedRegion = $event"
-                  size="sm"
+                  [fullWidth]="true"
                 ></app-lol-select>
               </div>
-              <button class="sw-go-btn" (click)="generate()" [disabled]="loading()">
+              <button class="btn-gold w-full flex items-center justify-center gap-3" (click)="generate()" [disabled]="loading()">
                 @if (loading()) { <span class="sw-spinner"></span> }
                 Unwrap My Season
               </button>
@@ -209,27 +210,9 @@ interface WrappedData {
       background: rgba(1,10,19,0.6); border: 1px solid var(--lol-gold-5);
       border-radius: 4px; padding: 1rem;
     }
-    .sw-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
-    .sw-field { display: flex; flex-direction: column; gap: 0.25rem; }
-    .sw-label { font-size: 0.75rem; color: var(--lol-gold-3); font-weight: 600; }
-    .sw-id-row { display: flex; align-items: center; }
-    .sw-input {
-      background: rgba(0,0,0,0.3); border: 1px solid var(--lol-gold-5);
-      color: var(--lol-text-primary, #ccc); padding: 0.4rem 0.6rem; font-size: 0.85rem;
-      border-radius: 3px 0 0 3px; width: 150px;
-    }
-    .sw-input--tag { border-radius: 0 3px 3px 0; width: 80px; }
-    .sw-hash {
-      color: var(--lol-gold-3); font-weight: 700; padding: 0 4px;
-      background: rgba(0,0,0,0.3); border-top: 1px solid var(--lol-gold-5);
-      border-bottom: 1px solid var(--lol-gold-5); line-height: 2.1;
-    }
-    .sw-go-btn {
-      background: linear-gradient(135deg, #9c27b0, #7b1fa2);
-      color: #fff; border: none; border-radius: 3px; padding: 0.5rem 1.5rem;
-      font-weight: 700; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;
-    }
-    .sw-go-btn:disabled { opacity: 0.5; }
+    .sw-form { display: flex; flex-direction: column; gap: 0.75rem; }
+    .sw-field { display: flex; flex-direction: column; gap: 0.35rem; }
+    .sw-label { font-size: 0.65rem; font-family: 'Cinzel', serif; text-transform: uppercase; letter-spacing: 0.1em; color: var(--lol-gold-3); font-weight: 600; }
     .sw-spinner {
       display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
       border-top-color: #fff; border-radius: 50%; animation: swspin 0.6s linear infinite;

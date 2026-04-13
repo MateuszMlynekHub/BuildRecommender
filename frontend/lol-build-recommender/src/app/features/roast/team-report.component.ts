@@ -47,18 +47,19 @@ interface TeamReport {
             rows="3"
           ></textarea>
         </div>
-        <div class="tr-controls">
+        <div class="tr-field">
+          <label class="tr-label">Region</label>
           <app-lol-select
             [options]="regionOptions()"
             [value]="selectedRegion"
             (valueChange)="selectedRegion = $event"
-            size="sm"
+            [fullWidth]="true"
           ></app-lol-select>
-          <button class="tr-analyze-btn" (click)="analyze()" [disabled]="loading()">
-            @if (loading()) { <span class="tr-spinner"></span> }
-            Analyze Team
-          </button>
         </div>
+        <button class="btn-gold w-full flex items-center justify-center gap-3" (click)="analyze()" [disabled]="loading()">
+          @if (loading()) { <span class="tr-spinner"></span> }
+          Analyze Team
+        </button>
       </div>
 
       @if (report()) {
@@ -128,20 +129,13 @@ interface TeamReport {
       border-radius: 4px; padding: 1rem; margin-bottom: 1.5rem;
     }
     .tr-field { margin-bottom: 0.75rem; }
-    .tr-label { font-size: 0.75rem; color: var(--lol-gold-3); font-weight: 600; display: block; margin-bottom: 0.25rem; }
+    .tr-label { font-size: 0.65rem; font-family: 'Cinzel', serif; text-transform: uppercase; letter-spacing: 0.1em; color: var(--lol-gold-3); font-weight: 600; display: block; margin-bottom: 0.35rem; }
     .tr-textarea {
       width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--lol-gold-5);
       border-radius: 3px; color: var(--lol-text-primary, #ccc); font-family: monospace;
       font-size: 0.85rem; padding: 0.5rem; resize: vertical;
     }
     .tr-textarea::placeholder { color: var(--lol-text-muted); }
-    .tr-controls { display: flex; gap: 0.5rem; align-items: center; }
-    .tr-analyze-btn {
-      background: linear-gradient(135deg, #f44336, #d32f2f);
-      color: #fff; border: none; border-radius: 3px; padding: 0.5rem 1.5rem;
-      font-weight: 700; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;
-    }
-    .tr-analyze-btn:disabled { opacity: 0.5; }
     .tr-spinner {
       display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
       border-top-color: #fff; border-radius: 50%; animation: trspin 0.6s linear infinite;

@@ -35,8 +35,15 @@ interface HighScore {
       <p class="bb-subtitle">Pick 6 items for the scenario and see how your build stacks up against our AI recommendation</p>
 
       @if (!scenario()) {
-        <button class="bb-start-btn" (click)="generateScenario()" [disabled]="allChampions().length === 0">
-          {{ allChampions().length === 0 ? 'Loading champions...' : 'Generate Scenario' }}
+        <button class="btn-gold w-full flex items-center justify-center gap-3" style="max-width: 480px;" (click)="generateScenario()" [disabled]="allChampions().length === 0">
+          @if (allChampions().length === 0) {
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="animate-spin">
+              <path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/>
+            </svg>
+            <span>Loading champions...</span>
+          } @else {
+            <span>Generate Scenario</span>
+          }
         </button>
       }
 
@@ -113,9 +120,13 @@ interface HighScore {
 
           <!-- Score Button -->
           @if (selectedItems().length === 6 && !result()) {
-            <button class="bb-score-btn" (click)="scoreBuild()" [disabled]="scoring()">
-              @if (scoring()) { <span class="bb-spinner"></span> }
-              Score My Build
+            <button class="btn-gold w-full flex items-center justify-center gap-3 mt-4" (click)="scoreBuild()" [disabled]="scoring()">
+              @if (scoring()) {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="animate-spin">
+                  <path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/>
+                </svg>
+              }
+              <span>Score My Build</span>
             </button>
           }
 
@@ -147,8 +158,8 @@ interface HighScore {
               }
 
               <div class="bb-result-actions">
-                <button class="bb-retry-btn" (click)="generateScenario()">New Scenario</button>
-                <button class="bb-retry-btn" (click)="retryScenario()">Retry Same Scenario</button>
+                <button class="btn-gold flex-1 flex items-center justify-center gap-2" (click)="generateScenario()">New Scenario</button>
+                <button class="btn-gold flex-1 flex items-center justify-center gap-2" (click)="retryScenario()">Retry Same Scenario</button>
               </div>
             </div>
           }
@@ -177,13 +188,6 @@ interface HighScore {
     .bb-container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
     .bb-title { font-size: 1.5rem; font-weight: 700; color: var(--lol-gold-1); margin-bottom: 0.25rem; }
     .bb-subtitle { font-size: 0.85rem; color: var(--lol-text-muted); margin-bottom: 1.5rem; }
-
-    .bb-start-btn {
-      background: linear-gradient(135deg, #ff9800, #f57c00);
-      color: #fff; border: none; border-radius: 4px; padding: 0.75rem 2rem;
-      font-weight: 700; cursor: pointer; font-size: 1rem;
-    }
-    .bb-start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .bb-scenario {
       background: rgba(1,10,19,0.6); border: 1px solid var(--lol-gold-5);
@@ -259,18 +263,6 @@ interface HighScore {
     .bb-item-name { font-size: 0.8rem; color: var(--lol-text-primary, #ccc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .bb-item-gold { font-size: 0.7rem; color: var(--lol-gold-3); }
 
-    .bb-score-btn {
-      background: linear-gradient(135deg, #ff9800, #f57c00);
-      color: #fff; border: none; border-radius: 3px; padding: 0.6rem 2rem;
-      font-weight: 700; cursor: pointer; font-size: 0.9rem; margin-top: 1rem;
-      display: flex; align-items: center; gap: 0.4rem; width: 100%; justify-content: center;
-    }
-    .bb-score-btn:disabled { opacity: 0.5; }
-    .bb-spinner {
-      display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff; border-radius: 50%; animation: bbspin 0.6s linear infinite;
-    }
-    @keyframes bbspin { to { transform: rotate(360deg); } }
 
     .bb-result {
       margin-top: 1rem; padding: 1.25rem; border: 2px solid var(--lol-gold-3);
@@ -301,11 +293,6 @@ interface HighScore {
     .bb-match { border-color: #4caf50; }
 
     .bb-result-actions { display: flex; gap: 0.5rem; }
-    .bb-retry-btn {
-      flex: 1; background: linear-gradient(135deg, var(--lol-gold-3), var(--lol-gold-5));
-      color: #0a0a0a; border: none; border-radius: 3px; padding: 0.5rem 1rem;
-      font-weight: 700; cursor: pointer; font-size: 0.8rem;
-    }
 
     .bb-highscores {
       margin-top: 2rem; background: rgba(1,10,19,0.5); border: 1px solid var(--lol-gold-5);
@@ -368,7 +355,7 @@ export class BuildBattleComponent {
     // Load completed items from the API
     this.http.get<Record<string, CompletedItem>>(`${this.baseUrl}/data/items`).subscribe({
       next: (dict) => {
-        const items = Object.values(dict).filter(i => i.gold.total >= 2000 && i.gold.purchasable);
+        const items = Object.values(dict).filter(i => i.gold.purchasable && (i.gold.total >= 2000 || i.tags.includes('Boots')));
         items.sort((a, b) => a.name.localeCompare(b.name));
         this.allItems.set(items);
       },
