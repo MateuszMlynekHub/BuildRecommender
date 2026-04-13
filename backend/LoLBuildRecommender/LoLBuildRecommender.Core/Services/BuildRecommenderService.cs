@@ -548,6 +548,7 @@ public class BuildRecommenderService : IBuildRecommenderService
         }
 
         var coreItemNames = coreItemStats.Select(s => s.ItemName).ToArray();
+        var coreStats = coreItemStats.ToArray();
 
         // From here on use effectiveRole so archetype + filters + counter value all align
         // with the champion's natural kit, not the mismatched assignment.
@@ -584,7 +585,7 @@ public class BuildRecommenderService : IBuildRecommenderService
 
         BuildVariant BuildVariantFor(BuildStyle style, string labelKey, string descriptionKey)
         {
-            var buildItems = BuildItemSet(myChampion, threatProfile, items, normalizedRole, allies, style, coreItemNames);
+            var buildItems = BuildItemSet(myChampion, threatProfile, items, normalizedRole, allies, style, coreItemNames, coreStats);
             var earlyComponents = DetectEarlyComponents(buildItems, tearComponent);
             var phases = BuildPhases(buildItems);
             return new BuildVariant
@@ -901,7 +902,7 @@ public class BuildRecommenderService : IBuildRecommenderService
 
     private static List<RecommendedItem> BuildItemSet(
         ChampionInfo champion, TeamThreatProfile threat, Dictionary<int, ItemInfo> allItems,
-        string role, ChampionInfo[] allies, BuildStyle style, string[] coreItemNames)
+        string role, ChampionInfo[] allies, BuildStyle style, string[] coreItemNames, ItemStat[] coreStats)
     {
         var selected = new List<RecommendedItem>();
         var usedIds = new HashSet<int>();
@@ -919,7 +920,7 @@ public class BuildRecommenderService : IBuildRecommenderService
         // Step 1: pick boots first (unless Cassiopeia).
         if (!skipBoots)
         {
-            var boots = PickBest(candidates, usedIds, usedNames, selected, champion, threat, role, allies, style, coreItemNames, bootsOnly: true);
+            var boots = PickBest(candidates, usedIds, usedNames, selected, champion, threat, role, allies, style, coreItemNames, coreStats, bootsOnly: true);
             if (boots is not null)
                 AddPick(boots, selected, usedIds, usedNames);
         }
@@ -928,7 +929,7 @@ public class BuildRecommenderService : IBuildRecommenderService
         var remainingSlots = TotalBuildSlots - selected.Count;
         for (int slot = 0; slot < remainingSlots; slot++)
         {
-            var pick = PickBest(candidates, usedIds, usedNames, selected, champion, threat, role, allies, style, coreItemNames, bootsOnly: false);
+            var pick = PickBest(candidates, usedIds, usedNames, selected, champion, threat, role, allies, style, coreItemNames, coreStats, bootsOnly: false);
             if (pick is null) break;
             AddPick(pick, selected, usedIds, usedNames);
         }
@@ -1033,6 +1034,7 @@ public class BuildRecommenderService : IBuildRecommenderService
         ChampionInfo[] allies,
         BuildStyle style,
         string[] coreItemNames,
+        ItemStat[] coreStats,
         bool bootsOnly)
     {
         ItemPick? best = null;
@@ -1051,7 +1053,7 @@ public class BuildRecommenderService : IBuildRecommenderService
             }
             if (!PassesSlotConstraints(item, selected)) continue;
 
-            var (score, reasons) = ScoreItem(item, champion, threat, selected, role, allies, style, coreItemNames);
+            var (score, reasons) = ScoreItem(item, champion, threat, selected, role, allies, style, coreItemNames, coreStats);
             if (best is null || score > best.Score)
             {
                 best = new ItemPick(item, score, reasons);
@@ -1106,7 +1108,7 @@ public class BuildRecommenderService : IBuildRecommenderService
     private static (double score, List<RecommendationReason> reasons) ScoreItem(
         ItemInfo item, ChampionInfo champion, TeamThreatProfile threat,
         List<RecommendedItem> selected, string role, ChampionInfo[] allies, BuildStyle style,
-        string[] coreItemNames)
+        string[] coreItemNames, ItemStat[] coreStats)
     {
         double score = 0;
         var reasons = new List<RecommendationReason>();
@@ -1125,23 +1127,29 @@ public class BuildRecommenderService : IBuildRecommenderService
         // === D. Role Penalties & Bonuses ===
         score += CalculateRoleBias(item, champion, role);
 
-        // === E. Historical Core Build Boost (+50 to +90) — pulled from Riot Match API stats
-        //    for this patch. Empty list = no boost applied, falls back to archetype + counter. ===
-        var coreBoost = CalculateChampionCoreBoost(item, coreItemNames);
+        // === E. Historical Core Build Boost — pulled from Riot Match API stats for this patch.
+        //    Win rate and pick count from crawled high-elo matches directly weight the score.
+        //    Empty list = no boost applied, falls back to archetype + counter. ===
+        var coreBoost = CalculateChampionCoreBoost(item, coreItemNames, coreStats);
         if (coreBoost.Rank >= 0)
         {
             score += coreBoost.Score;
-            // Pro meta reason goes at index 0 so it shows as the first bullet — players
-            // care most about "this is the meta pick" before any counter bonus.
+            var matchingStat = coreBoost.Rank < coreStats.Length ? coreStats[coreBoost.Rank] : null;
+            var reasonArgs = new Dictionary<string, object>
+            {
+                ["champion"] = champion.Name,
+                ["rank"] = coreBoost.Rank + 1,
+                ["total"] = coreBoost.Total,
+            };
+            if (matchingStat is not null && matchingStat.Picks >= 5)
+            {
+                reasonArgs["winRate"] = Math.Round(matchingStat.WinRate * 100, 1);
+                reasonArgs["picks"] = matchingStat.Picks;
+            }
             reasons.Insert(0, new RecommendationReason
             {
                 Key = "reason.proMeta",
-                Args = new Dictionary<string, object>
-                {
-                    ["champion"] = champion.Name,
-                    ["rank"] = coreBoost.Rank + 1,
-                    ["total"] = coreBoost.Total,
-                },
+                Args = reasonArgs,
             });
         }
 
@@ -1223,17 +1231,40 @@ public class BuildRecommenderService : IBuildRecommenderService
         public static readonly CoreBoost None = new(0, -1, 0);
     }
 
-    private static CoreBoost CalculateChampionCoreBoost(ItemInfo item, string[] coreItemNames)
+    private static CoreBoost CalculateChampionCoreBoost(ItemInfo item, string[] coreItemNames, ItemStat[] coreStats)
     {
         if (coreItemNames.Length == 0) return CoreBoost.None;
 
         var rank = IndexOfName(coreItemNames, item.Name);
         if (rank < 0) return CoreBoost.None;
 
-        // Rank 0 (most important): +90. Each subsequent rank drops by 10.
-        // Rank 4 floor at +50 — enough that a core item's base+boost beats any non-core
-        // item's archetype fit (≤90) alone without a strong counter value tailwind.
-        var boost = Math.Max(50, 90 - rank * 10);
+        // Find the matching stat entry with actual win rate and pick count.
+        var stat = rank < coreStats.Length ? coreStats[rank] : null;
+
+        double boost;
+        if (stat is not null && stat.Picks >= 5)
+        {
+            // Win-rate-weighted boost: a 55% WR item gets +110, a 48% WR item gets +96.
+            // This makes the historical signal the dominant factor in scoring (~100 points)
+            // while archetype fit (~-60 to +90) and counter value (~0 to +55) provide context.
+            var winRateBoost = stat.WinRate * 200;
+
+            // Confidence multiplier: items with more picks get full weight, items with fewer
+            // picks (5-20) get reduced boost. Scales from 0.5 to 1.0.
+            var confidence = Math.Min(1.0, 0.5 + (stat.Picks / 40.0) * 0.5);
+
+            // Position bonus: top-ranked item gets a small extra nudge (+15 → +5).
+            var positionBonus = Math.Max(5, 15 - rank * 2.5);
+
+            boost = (winRateBoost * confidence) + positionBonus;
+        }
+        else
+        {
+            // Fallback for items in core list but without sufficient stats (shouldn't happen
+            // normally since GetCoreItemsAsync already filters Picks >= 5).
+            boost = Math.Max(50, 90 - rank * 10);
+        }
+
         return new CoreBoost(boost, rank, coreItemNames.Length);
     }
 
