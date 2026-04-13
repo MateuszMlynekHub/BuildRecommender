@@ -568,131 +568,89 @@ public class BuildStatsService : IBuildStatsService
     }
 
     public async Task<IReadOnlyList<ProBuild>> GetProBuildsAsync(
-        string region = "euw1", int count = 20, CancellationToken ct = default)
+        string region = "euw1", int count = 20, int offset = 0, CancellationToken ct = default)
     {
         var patch = ToMajorMinor(await _gameData.GetCurrentVersionAsync());
         if (string.IsNullOrEmpty(patch)) return Array.Empty<ProBuild>();
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        var champions = await _gameData.GetChampionsAsync();
+        var version = await _gameData.GetCurrentVersionAsync();
 
-        // Generate synthetic "pro builds" from top item stats + champion data.
-        // This is a placeholder until we have a real Challenger match history
-        // endpoint or pro-player database. We take the top-picked champions from
-        // the current patch and fabricate plausible build entries.
-        var topChamps = await db.SpellStats.AsNoTracking()
-            .Where(s => s.Patch == patch)
-            .GroupBy(s => new { s.ChampionId, s.ChampionKey, s.Role })
-            .Select(g => new { g.Key.ChampionId, g.Key.ChampionKey, g.Key.Role,
-                Picks = g.Sum(r => r.Picks), Wins = g.Sum(r => r.Wins) })
-            .Where(c => c.Picks >= 5)
-            .OrderByDescending(c => c.Picks)
+        // Get distinct match IDs that have crawled participants, newest first.
+        var matchIds = await db.CrawledMatchParticipants.AsNoTracking()
+            .Where(p => p.Patch == patch)
+            .Select(p => p.MatchId)
+            .Distinct()
+            .OrderByDescending(id => id)
+            .Skip(offset)
             .Take(count)
             .ToListAsync(ct);
 
-        var result = new List<ProBuild>();
-        var rng = new Random(42); // deterministic seed for consistent stub output
-        var playerNames = new[] {
-            "Faker", "Chovy", "Zeus", "Keria", "Gumayusi",
-            "Caps", "Jankos", "Viper", "Deft", "ShowMaker",
-            "Canyon", "Ruler", "BeryL", "Bin", "Knight",
-            "Elk", "Meiko", "Xiaohu", "Wei", "JackeyLove",
-        };
-        var teams = new[] {
-            "T1", "GEN", "HLE", "DK", "KT",
-            "G2", "FNC", "BLG", "JDG", "WBG",
-        };
-
-        var champions = await _gameData.GetChampionsAsync();
-        var version = await _gameData.GetCurrentVersionAsync();
-        var roles = new[] { "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY" };
-
-        // Grab a pool of champion keys for generating opponent data
-        var champPool = topChamps.Select(c => c.ChampionKey).Distinct().ToList();
-
-        foreach (var champ in topChamps)
+        if (matchIds.Count == 0)
         {
-            // Get top 6 items for this champion+role
-            var items = await db.ItemStats.AsNoTracking()
-                .Where(s => s.Patch == patch && s.ChampionId == champ.ChampionId
-                    && s.Role == champ.Role && s.Picks >= 3)
-                .OrderByDescending(s => s.Picks)
-                .Take(6)
-                .Select(s => s.ItemId)
-                .ToListAsync(ct);
+            // Fallback: no crawled participants yet (old DB). Return empty.
+            return Array.Empty<ProBuild>();
+        }
 
-            var won = champ.Wins > champ.Picks / 2;
-            var idx = result.Count % playerNames.Length;
+        // Load all participants for those matches in one query.
+        var allParticipants = await db.CrawledMatchParticipants.AsNoTracking()
+            .Where(p => matchIds.Contains(p.MatchId))
+            .ToListAsync(ct);
 
-            // Generate 10 synthetic participants (5v5) for the match detail view
-            var participants = new List<ProBuildParticipant>();
-            var usedChamps = new HashSet<int> { champ.ChampionId };
-            for (int slot = 0; slot < 10; slot++)
+        var result = new List<ProBuild>();
+        foreach (var matchId in matchIds)
+        {
+            var matchParticipants = allParticipants.Where(p => p.MatchId == matchId).ToList();
+            if (matchParticipants.Count == 0) continue;
+
+            // Pick the first participant as the "featured" player (the one highlighted).
+            var featured = matchParticipants.First();
+            champions.TryGetValue(featured.ChampionId, out var featuredChamp);
+
+            var participants = matchParticipants.Select(p =>
             {
-                var teamId = slot < 5 ? 100 : 200;
-                var role = roles[slot % 5];
-                var isMe = slot == Array.IndexOf(roles, champ.Role.ToUpperInvariant());
-                if (isMe && teamId == 100) isMe = true; // the pro player is on team 100
-                else isMe = false;
-
-                int pChampId;
-                string pChampKey;
-                if (slot == Array.IndexOf(roles, champ.Role.ToUpperInvariant()))
+                champions.TryGetValue(p.ChampionId, out var pInfo);
+                var pItems = p.Items.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => int.TryParse(s, out var id) ? id : 0)
+                    .Where(id => id != 0)
+                    .ToArray();
+                return new ProBuildParticipant
                 {
-                    pChampId = champ.ChampionId;
-                    pChampKey = champ.ChampionKey;
-                }
-                else
-                {
-                    // Pick a random champ from pool, avoiding duplicates
-                    var available = champPool.Where(k =>
-                    {
-                        var c = champions.Values.FirstOrDefault(v => v.Key == k);
-                        return c != null && !usedChamps.Contains(c.Id);
-                    }).ToList();
-                    if (available.Count == 0)
-                        available = champions.Values.Where(v => !usedChamps.Contains(v.Id))
-                            .Take(20).Select(v => v.Key).ToList();
-                    var pickKey = available.Count > 0 ? available[rng.Next(available.Count)] : "Aatrox";
-                    var pickChamp = champions.Values.FirstOrDefault(v => v.Key == pickKey);
-                    pChampId = pickChamp?.Id ?? 266;
-                    pChampKey = pickChamp?.Key ?? "Aatrox";
-                    usedChamps.Add(pChampId);
-                }
-
-                champions.TryGetValue(pChampId, out var pInfo);
-                participants.Add(new ProBuildParticipant
-                {
-                    ChampionId = pChampId,
-                    ChampionKey = pChampKey,
+                    ChampionId = p.ChampionId,
+                    ChampionKey = p.ChampionKey,
                     ChampionImage = pInfo != null
                         ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{pInfo.ImageFileName}" : "",
-                    TeamPosition = role,
-                    TeamId = teamId,
-                    Kills = rng.Next(1, 12),
-                    Deaths = rng.Next(0, 8),
-                    Assists = rng.Next(2, 16),
-                    Items = Array.Empty<int>(),
-                    Win = teamId == 100 ? won : !won,
-                    SummonerName = teamId == 100
-                        ? playerNames[(idx + slot) % playerNames.Length]
-                        : $"Player{slot + 1}",
-                });
-            }
+                    TeamPosition = p.Role,
+                    TeamId = p.TeamId,
+                    Kills = p.Kills,
+                    Deaths = p.Deaths,
+                    Assists = p.Assists,
+                    Items = pItems,
+                    Win = p.Win,
+                    SummonerName = p.PlayerName ?? "Challenger",
+                };
+            }).ToList();
+
+            var featuredItems = featured.Items.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => int.TryParse(s, out var id) ? id : 0)
+                .Where(id => id != 0)
+                .ToArray();
 
             result.Add(new ProBuild
             {
-                PlayerName = playerNames[idx],
-                Team = teams[idx % teams.Length],
+                PlayerName = featured.PlayerName ?? "Challenger",
+                Team = featured.PlayerTeam ?? "High Elo",
                 Region = region.ToUpperInvariant(),
-                ChampionId = champ.ChampionId,
-                ChampionKey = champ.ChampionKey,
-                Role = champ.Role,
-                Items = items.ToArray(),
-                Kills = rng.Next(2, 15),
-                Deaths = rng.Next(0, 8),
-                Assists = rng.Next(3, 18),
-                Win = won,
-                MatchId = $"{region}_{patch}_{champ.ChampionId}_{result.Count}",
+                ChampionId = featured.ChampionId,
+                ChampionKey = featured.ChampionKey,
+                Role = featured.Role,
+                Items = featuredItems,
+                Kills = featured.Kills,
+                Deaths = featured.Deaths,
+                Assists = featured.Assists,
+                Win = featured.Win,
+                MatchId = matchId,
                 Participants = participants,
             });
         }

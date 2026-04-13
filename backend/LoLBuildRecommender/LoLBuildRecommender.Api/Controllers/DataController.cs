@@ -352,9 +352,11 @@ public class DataController : ControllerBase
     /// </summary>
     [HttpGet("probuilds")]
     public async Task<ActionResult> GetProBuilds(
-        [FromQuery] string region = "euw1", [FromQuery] int count = 20)
+        [FromQuery] string region = "euw1", [FromQuery] int count = 20, [FromQuery] int offset = 0)
     {
-        var builds = await _buildStats.GetProBuildsAsync(region, count);
+        count = Math.Clamp(count, 1, 100);
+        offset = Math.Max(offset, 0);
+        var builds = await _buildStats.GetProBuildsAsync(region, count, offset);
         return Ok(builds);
     }
 }

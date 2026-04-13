@@ -114,6 +114,7 @@ public class RiotApiService : IRiotApiService
             Participants = dto.Info.Participants.Select(p => new MatchParticipant
             {
                 Puuid = p.Puuid,
+                RiotIdGameName = p.RiotIdGameName,
                 ChampionId = p.ChampionId,
                 TeamPosition = p.TeamPosition,
                 TeamId = p.TeamId,

@@ -228,6 +228,30 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ""IX_StartingItemStats_Patch_ChampionId_Role""
         ON ""StartingItemStats"" (""Patch"", ""ChampionId"", ""Role"")");
 
+    // --- CrawledMatchParticipants table (for Pro Builds page) ---
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE TABLE IF NOT EXISTS ""CrawledMatchParticipants"" (
+            ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_CrawledMatchParticipants"" PRIMARY KEY AUTOINCREMENT,
+            ""Patch"" TEXT NOT NULL, ""MatchId"" TEXT NOT NULL,
+            ""ChampionId"" INTEGER NOT NULL, ""ChampionKey"" TEXT NOT NULL,
+            ""Role"" TEXT NOT NULL, ""TeamId"" INTEGER NOT NULL,
+            ""Items"" TEXT NOT NULL,
+            ""Kills"" INTEGER NOT NULL, ""Deaths"" INTEGER NOT NULL, ""Assists"" INTEGER NOT NULL,
+            ""Win"" INTEGER NOT NULL,
+            ""Spell1Id"" INTEGER NOT NULL, ""Spell2Id"" INTEGER NOT NULL,
+            ""PlayerName"" TEXT, ""PlayerTeam"" TEXT,
+            ""CrawledAt"" TEXT NOT NULL
+        )");
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE INDEX IF NOT EXISTS ""IX_CrawledMatchParticipants_Patch""
+        ON ""CrawledMatchParticipants"" (""Patch"")");
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE INDEX IF NOT EXISTS ""IX_CrawledMatchParticipants_Patch_ChampionId""
+        ON ""CrawledMatchParticipants"" (""Patch"", ""ChampionId"")");
+    await ctx.Database.ExecuteSqlRawAsync(@"
+        CREATE INDEX IF NOT EXISTS ""IX_CrawledMatchParticipants_MatchId""
+        ON ""CrawledMatchParticipants"" (""MatchId"")");
+
     // Forward-compatible ALTER — add DataVersion column to CrawlMetadata if absent.
     // SQLite doesn't support IF NOT EXISTS on ALTER TABLE ADD COLUMN, so we check
     // the column's presence via pragma_table_info first. Pre-checking (instead of

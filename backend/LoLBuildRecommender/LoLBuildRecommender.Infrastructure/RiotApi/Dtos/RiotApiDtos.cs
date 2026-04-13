@@ -147,6 +147,9 @@ public class MatchParticipantDto
     [JsonPropertyName("championName")]
     public string ChampionName { get; set; } = string.Empty;
 
+    [JsonPropertyName("riotIdGameName")]
+    public string RiotIdGameName { get; set; } = string.Empty;
+
     [JsonPropertyName("kills")]
     public int Kills { get; set; }
 

@@ -217,3 +217,31 @@ public class StartingItemStatEntity
     public int Wins { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
+
+/// <summary>
+/// One row per participant in a crawled high-elo match. Stores the full final build,
+/// KDA, and outcome so the "Pro Builds" page can display real match data with pagination.
+/// </summary>
+public class CrawledMatchParticipantEntity
+{
+    public int Id { get; set; }
+    public string Patch { get; set; } = string.Empty;
+    public string MatchId { get; set; } = string.Empty;
+    public int ChampionId { get; set; }
+    public string ChampionKey { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public int TeamId { get; set; }
+    /// <summary>Comma-separated final item IDs (slot 0-5, zeroes excluded).</summary>
+    public string Items { get; set; } = string.Empty;
+    public int Kills { get; set; }
+    public int Deaths { get; set; }
+    public int Assists { get; set; }
+    public bool Win { get; set; }
+    public int Spell1Id { get; set; }
+    public int Spell2Id { get; set; }
+    /// <summary>Pro player name if matched from the pro player list, null otherwise.</summary>
+    public string? PlayerName { get; set; }
+    /// <summary>Pro player team if matched, null otherwise.</summary>
+    public string? PlayerTeam { get; set; }
+    public DateTime CrawledAt { get; set; }
+}

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using LoLBuildRecommender.Core.Interfaces;
 using LoLBuildRecommender.Core.Models;
 using LoLBuildRecommender.Core.Services;
@@ -74,6 +75,37 @@ public class BuildStatsCrawler
 
     /// <summary>Skill slot → letter mapping (Riot uses 1-4 for Q/W/E/R).</summary>
     private static string SkillSlotToLetter(int slot) => slot switch { 1 => "Q", 2 => "W", 3 => "E", 4 => "R", _ => "?" };
+
+    /// <summary>Pro player lookup: IGN (case-insensitive) → (name, team).</summary>
+    private static readonly Dictionary<string, (string name, string team)> ProPlayerLookup = LoadProPlayers();
+
+    private static Dictionary<string, (string name, string team)> LoadProPlayers()
+    {
+        var lookup = new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var assembly = typeof(BuildStatsCrawler).Assembly;
+            var resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("ProPlayers.json"));
+            if (resourceName is null) return lookup;
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream is null) return lookup;
+
+            var players = JsonSerializer.Deserialize<List<ProPlayerEntry>>(stream);
+            if (players is null) return lookup;
+
+            foreach (var p in players)
+            {
+                if (!string.IsNullOrEmpty(p.name))
+                    lookup.TryAdd(p.name, (p.name, p.team ?? ""));
+            }
+        }
+        catch { /* non-critical — pro tags just won't appear */ }
+        return lookup;
+    }
+
+    private record ProPlayerEntry(string name, string? team, string? region, string? role);
 
     public BuildStatsCrawler(
         IRiotApiService riot,
@@ -300,6 +332,7 @@ public class BuildStatsCrawler
         var batchBanAggregate = new Dictionary<int, (string championKey, int bans)>();
         var batchTotalMatches = 0;
         var batchMatchIds = new List<string>();
+        var batchParticipants = new List<CrawledMatchParticipantEntity>();
         var batchAggregatedCount = 0;  // matches in the current batch that contributed to ItemStats
         var totalProcessed = 0;
         var totalFlushed = 0;
@@ -557,13 +590,51 @@ public class BuildStatsCrawler
                 // Timeline fetch failed — non-critical
             }
 
+            // Store per-participant data for Pro Builds page
+            var now = DateTime.UtcNow;
+            foreach (var p in match.Participants)
+            {
+                if (string.IsNullOrEmpty(p.TeamPosition)) continue;
+                if (!champInfo.TryGetValue(p.ChampionId, out var pChamp)) continue;
+                var itemCsv = string.Join(",", p.Items.Where(id => id != 0));
+
+                // Match against pro player list by Riot ID game name
+                string? proName = null;
+                string? proTeam = null;
+                if (!string.IsNullOrEmpty(p.RiotIdGameName) && ProPlayerLookup.TryGetValue(p.RiotIdGameName, out var proInfo))
+                {
+                    proName = proInfo.name;
+                    proTeam = proInfo.team;
+                }
+
+                batchParticipants.Add(new CrawledMatchParticipantEntity
+                {
+                    Patch = patch,
+                    MatchId = matchId,
+                    ChampionId = p.ChampionId,
+                    ChampionKey = pChamp.Key,
+                    Role = NormalizeLane(p.TeamPosition),
+                    TeamId = p.TeamId,
+                    Items = itemCsv,
+                    Kills = p.Kills,
+                    Deaths = p.Deaths,
+                    Assists = p.Assists,
+                    Win = p.Win,
+                    Spell1Id = p.Summoner1Id,
+                    Spell2Id = p.Summoner2Id,
+                    PlayerName = proName,
+                    PlayerTeam = proTeam,
+                    CrawledAt = now,
+                });
+            }
+
             batchMatchIds.Add(matchId);
             batchAggregatedCount++;
             totalProcessed++;
 
             if (batchMatchIds.Count >= PersistBatchSize)
             {
-                await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchStartingItemAggregate, batchBanAggregate, batchTotalMatches, batchMatchIds, batchAggregatedCount, patch, ct);
+                await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchStartingItemAggregate, batchBanAggregate, batchTotalMatches, batchMatchIds, batchParticipants, batchAggregatedCount, patch, ct);
                 totalFlushed += batchAggregatedCount;
                 _logger.LogInformation(
                     "Flushed batch: {BatchSize} match IDs ({Aggregated} aggregated) → DB total {Flushed}/{All} (in-memory rows: {Rows}, errors: {Errors})",
@@ -578,6 +649,7 @@ public class BuildStatsCrawler
                 batchBanAggregate.Clear();
                 batchTotalMatches = 0;
                 batchMatchIds.Clear();
+                batchParticipants.Clear();
                 batchAggregatedCount = 0;
             }
         }
@@ -585,7 +657,7 @@ public class BuildStatsCrawler
         // Final flush for the tail of matches that didn't fill a full batch.
         if (batchMatchIds.Count > 0)
         {
-            await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchStartingItemAggregate, batchBanAggregate, batchTotalMatches, batchMatchIds, batchAggregatedCount, patch, ct);
+            await FlushBatchAsync(batchAggregate, batchRuneAggregate, batchSpellAggregate, batchMatchupAggregate, batchBuildOrderAggregate, batchSkillOrderAggregate, batchStartingItemAggregate, batchBanAggregate, batchTotalMatches, batchMatchIds, batchParticipants, batchAggregatedCount, patch, ct);
             totalFlushed += batchAggregatedCount;
             _logger.LogInformation(
                 "Flushed final batch: {BatchSize} match IDs ({Aggregated} aggregated) → DB total {Flushed}/{All}",
@@ -620,6 +692,7 @@ public class BuildStatsCrawler
         Dictionary<int, (string championKey, int bans)> banBatch,
         int totalMatchesInBatch,
         List<string> batchMatchIds,
+        List<CrawledMatchParticipantEntity> participantsBatch,
         int aggregatedCount,
         string patch,
         CancellationToken ct)
@@ -888,6 +961,12 @@ public class BuildStatsCrawler
         }
 
         // Bump metadata.
+        // --- Crawled match participants (for Pro Builds page) ---
+        if (participantsBatch.Count > 0)
+        {
+            db.CrawledMatchParticipants.AddRange(participantsBatch);
+        }
+
         var dbMeta = await db.CrawlMetadata.FindAsync(new object[] { patch }, ct);
         if (dbMeta is null)
         {
@@ -1022,6 +1101,7 @@ public class BuildStatsCrawler
         await db.SkillOrderStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.StartingItemStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.BanStats.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
+        await db.CrawledMatchParticipants.Where(s => s.Patch == patch).ExecuteDeleteAsync(ct);
         await db.CrawlMetadata.Where(m => m.Patch == patch).ExecuteDeleteAsync(ct);
     }
 

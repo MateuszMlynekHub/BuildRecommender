@@ -23,6 +23,7 @@ public class BuildStatsDbContext : DbContext
     public DbSet<BanStatEntity> BanStats => Set<BanStatEntity>();
     public DbSet<CrawlMetadataEntity> CrawlMetadata => Set<CrawlMetadataEntity>();
     public DbSet<ProcessedMatchEntity> ProcessedMatches => Set<ProcessedMatchEntity>();
+    public DbSet<CrawledMatchParticipantEntity> CrawledMatchParticipants => Set<CrawledMatchParticipantEntity>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -135,8 +136,20 @@ public class BuildStatsDbContext : DbContext
             e.HasKey(x => x.MatchId);
             e.Property(x => x.MatchId).HasMaxLength(32).IsRequired();
             e.Property(x => x.Patch).HasMaxLength(16).IsRequired();
-            // Index for patch-scoped cleanup when a new patch drops.
             e.HasIndex(x => x.Patch);
+        });
+
+        mb.Entity<CrawledMatchParticipantEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Patch).HasMaxLength(16).IsRequired();
+            e.Property(x => x.MatchId).HasMaxLength(32).IsRequired();
+            e.Property(x => x.ChampionKey).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Role).HasMaxLength(16).IsRequired();
+            e.Property(x => x.Items).HasMaxLength(128).IsRequired();
+            e.HasIndex(x => x.Patch);
+            e.HasIndex(x => new { x.Patch, x.ChampionId });
+            e.HasIndex(x => x.MatchId);
         });
     }
 }

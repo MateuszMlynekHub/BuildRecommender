@@ -59,6 +59,7 @@ public record MatchDetails
 public record MatchParticipant
 {
     public string Puuid { get; init; } = string.Empty;
+    public string RiotIdGameName { get; init; } = string.Empty;
     public int ChampionId { get; init; }
 
     /// <summary>Assigned team position: TOP / JUNGLE / MIDDLE / BOTTOM / UTILITY. May be empty for bot/unassigned games.</summary>

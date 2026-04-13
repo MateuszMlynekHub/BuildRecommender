@@ -80,7 +80,7 @@ public interface IBuildStatsService
     /// is available, returns synthetic data derived from Challenger/Grandmaster matches.
     /// </summary>
     Task<IReadOnlyList<ProBuild>> GetProBuildsAsync(
-        string region = "euw1", int count = 20, CancellationToken ct = default);
+        string region = "euw1", int count = 20, int offset = 0, CancellationToken ct = default);
 
     /// <summary>
     /// Win rate bucketed by game duration for a specific champion. Since duration isn't
