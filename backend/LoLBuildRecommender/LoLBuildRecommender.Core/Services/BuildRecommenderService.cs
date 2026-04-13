@@ -1112,24 +1112,13 @@ public class BuildRecommenderService : IBuildRecommenderService
     {
         double score = 0;
         var reasons = new List<RecommendationReason>();
+        var hasHistoricalData = coreStats.Length > 0;
 
-        // === A. Archetype Fit (-60 to +90) — strong signal of whether this item belongs on this champ ===
-        score += CalculateArchetypeFit(item, champion, role, coreItemNames);
-
-        // === B. Counter Value (0-55) ===
-        var (counterScore, counterReasons) = CalculateCounterValue(item, champion, threat, role, allies);
-        score += counterScore;
-        reasons.AddRange(counterReasons);
-
-        // === C. Synergy (-15 to +10) ===
-        score += CalculateSynergy(item, champion, selected);
-
-        // === D. Role Penalties & Bonuses ===
-        score += CalculateRoleBias(item, champion, role);
-
-        // === E. Historical Core Build Boost — pulled from Riot Match API stats for this patch.
-        //    Win rate and pick count from crawled high-elo matches directly weight the score.
-        //    Empty list = no boost applied, falls back to archetype + counter. ===
+        // === E. Historical Core Build Boost (PRIMARY SIGNAL when data available) ===
+        // When we have crawled match data, historical win rates are the strongest signal.
+        // Items in the core list get a large boost proportional to their win rate.
+        // Items NOT in the core list get a penalty when data is available, preventing
+        // generic archetype-good items from beating real meta picks.
         var coreBoost = CalculateChampionCoreBoost(item, coreItemNames, coreStats);
         if (coreBoost.Rank >= 0)
         {
@@ -1152,6 +1141,27 @@ public class BuildRecommenderService : IBuildRecommenderService
                 Args = reasonArgs,
             });
         }
+        else if (hasHistoricalData && !item.Classification.IsBoots)
+        {
+            // Item is NOT in the historical core build but we have data — penalize it
+            // so archetype-generic items can't beat real meta picks. Counter items can
+            // still overcome this penalty via their counter value score.
+            score -= 40;
+        }
+
+        // === A. Archetype Fit (-60 to +90) — secondary signal, validates item belongs on this champ ===
+        score += CalculateArchetypeFit(item, champion, role, coreItemNames);
+
+        // === B. Counter Value (0-55) — can rescue non-core items when enemy comp demands them ===
+        var (counterScore, counterReasons) = CalculateCounterValue(item, champion, threat, role, allies);
+        score += counterScore;
+        reasons.AddRange(counterReasons);
+
+        // === C. Synergy (-15 to +10) ===
+        score += CalculateSynergy(item, champion, selected);
+
+        // === D. Role Penalties & Bonuses ===
+        score += CalculateRoleBias(item, champion, role);
 
         // === F. Ally Synergy — e.g. Ardent Censer great with Jinx/Kaisa, bad with Yasuo/Yone ===
         var (synergyScore, synergyReason) = CalculateAllySynergy(item, role, allies);
