@@ -32,6 +32,20 @@ public record BuildRecommendation
     /// (e.g., Yuumi). Rendered as its own section below the item build.
     /// </summary>
     public SkillOrder? SkillOrder { get; init; }
+
+    /// <summary>
+    /// Diagnostic: core items from historical data used to score this build.
+    /// Exposed so the frontend/developer can verify data-driven picks.
+    /// </summary>
+    public List<CoreItemDebug> CoreItems { get; init; } = [];
+}
+
+public record CoreItemDebug
+{
+    public string Name { get; init; } = string.Empty;
+    public int Picks { get; init; }
+    public int Wins { get; init; }
+    public double WinRate { get; init; }
 }
 
 public record BuildVariant

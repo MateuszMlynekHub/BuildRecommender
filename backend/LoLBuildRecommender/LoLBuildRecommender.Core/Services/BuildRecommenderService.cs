@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using LoLBuildRecommender.Core.Interfaces;
 using LoLBuildRecommender.Core.Models;
 
@@ -463,11 +464,13 @@ public class BuildRecommenderService : IBuildRecommenderService
 
     private readonly IGameDataService _gameData;
     private readonly IBuildStatsService _buildStats;
+    private readonly ILogger<BuildRecommenderService> _logger;
 
-    public BuildRecommenderService(IGameDataService gameData, IBuildStatsService buildStats)
+    public BuildRecommenderService(IGameDataService gameData, IBuildStatsService buildStats, ILogger<BuildRecommenderService> logger)
     {
         _gameData = gameData;
         _buildStats = buildStats;
+        _logger = logger;
     }
 
     public async Task<BuildRecommendation> RecommendBuildAsync(
@@ -498,7 +501,7 @@ public class BuildRecommenderService : IBuildRecommenderService
         // natural role (players swap in lobby without switching picks). When the crawler
         // has zero picks for (champion, requestedRole), fall back to the champion's natural
         // positions from Meraki so we don't serve a nonsensical Enchanter build for Aatrox.
-        var coreItemStats = await _buildStats.GetCoreItemsAsync(championId, requestedRole, count: 5);
+        var coreItemStats = await _buildStats.GetCoreItemsAsync(championId, requestedRole, count: 10);
         var effectiveRole = requestedRole;
         AnomalyInfo? anomaly = null;
 
@@ -510,7 +513,7 @@ public class BuildRecommenderService : IBuildRecommenderService
                 var naturalLane = naturalPosition.ToUpperInvariant();
                 if (naturalLane == requestedRole) continue; // already queried above
 
-                var fallback = await _buildStats.GetCoreItemsAsync(championId, naturalLane, count: 5);
+                var fallback = await _buildStats.GetCoreItemsAsync(championId, naturalLane, count: 10);
                 if (fallback.Count > 0)
                 {
                     coreItemStats = fallback;
@@ -550,6 +553,18 @@ public class BuildRecommenderService : IBuildRecommenderService
         var coreItemNames = coreItemStats.Select(s => s.ItemName).ToArray();
         var coreStats = coreItemStats.ToArray();
 
+        if (coreStats.Length > 0)
+        {
+            _logger.LogInformation(
+                "Historical data for {Champion} ({Role}): {Count} core items — {Items}",
+                myChampion.Name, effectiveRole, coreStats.Length,
+                string.Join(", ", coreStats.Select(s => $"{s.ItemName} ({s.Picks}p/{s.Wins}w/{s.WinRate:P0})")));
+        }
+        else
+        {
+            _logger.LogWarning("No historical data for {Champion} ({Role}) — using heuristics only", myChampion.Name, requestedRole);
+        }
+
         // From here on use effectiveRole so archetype + filters + counter value all align
         // with the champion's natural kit, not the mismatched assignment.
         var normalizedRole = effectiveRole;
@@ -581,11 +596,22 @@ public class BuildRecommenderService : IBuildRecommenderService
             EffectiveRole = effectiveRole,
             Anomaly = anomaly,
             SkillOrder = myChampion.SkillOrder,
+            CoreItems = coreStats.Select(s => new CoreItemDebug
+            {
+                Name = s.ItemName,
+                Picks = s.Picks,
+                Wins = s.Wins,
+                WinRate = Math.Round(s.WinRate, 4),
+            }).ToList(),
         };
 
         BuildVariant BuildVariantFor(BuildStyle style, string labelKey, string descriptionKey)
         {
             var buildItems = BuildItemSet(myChampion, threatProfile, items, normalizedRole, allies, style, coreItemNames, coreStats);
+            _logger.LogInformation(
+                "Build [{Style}] for {Champion}: {Items}",
+                style, myChampion.Name,
+                string.Join(" → ", buildItems.Select(i => $"{i.Item.Name}({i.Score:F0})")));
             var earlyComponents = DetectEarlyComponents(buildItems, tearComponent);
             var phases = BuildPhases(buildItems);
             return new BuildVariant
