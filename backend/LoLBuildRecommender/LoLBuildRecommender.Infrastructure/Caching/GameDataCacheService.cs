@@ -69,7 +69,7 @@ public class GameDataCacheService : IGameDataService
         return all.TryGetValue(id, out var item) ? item : null;
     }
 
-    private async Task<Dictionary<int, ItemInfo>> GetAllItemsAsync()
+    public async Task<Dictionary<int, ItemInfo>> GetAllItemsAsync()
     {
         return await _cache.GetOrCreateAsync(AllItemsCacheKey, async entry =>
         {

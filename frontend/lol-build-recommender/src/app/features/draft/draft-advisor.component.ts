@@ -7,7 +7,6 @@ import { GameStateService } from '../../core/services/game-state.service';
 import { SeoService } from '../../core/services/seo.service';
 import { Champion, LaneRole, LANE_ORDER } from '../../core/models/champion.model';
 import { MatchupStat } from '../../core/models/champion-detail.model';
-import { TPipe } from '../../shared/pipes/t.pipe';
 
 interface DraftSlot {
   champion: Champion | null;
@@ -27,7 +26,7 @@ const ROLE_LABELS: Record<LaneRole, string> = {
 @Component({
   selector: 'app-draft-advisor',
   standalone: true,
-  imports: [FormsModule, RouterLink, TPipe],
+  imports: [FormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="draft-page">

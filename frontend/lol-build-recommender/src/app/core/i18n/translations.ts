@@ -110,6 +110,19 @@ export type TranslationKey =
   | 'champion.cooldown'
   | 'champion.cost'
   | 'champion.range'
+  | 'champion.detail.runeTable'
+  | 'champion.detail.noRuneTable'
+
+  // ---- Counter tips (matchup strategy) -----------------------------------
+  | 'champion.counterTips'
+  | 'counterTip.antiHeal'
+  | 'counterTip.buildArmor'
+  | 'counterTip.buildMr'
+  | 'counterTip.respectEngage'
+  | 'counterTip.tenacityVsCc'
+  | 'counterTip.pokeSafe'
+  | 'counterTip.allInWindow'
+  | 'counterTip.scaleAdvantage'
 
   // ---- Home hero ---------------------------------------------------------
   | 'home.hero.title1'
@@ -241,7 +254,77 @@ export type TranslationKey =
   | 'reason.goodItem'               // {champion}
   | 'reason.synergy.ardentFriendly' // {ally}
   | 'reason.synergy.ardentUnfriendly' // {ally}
-  | 'reason.synergy.flowingWaterMediocre'; // {ally}
+  | 'reason.synergy.flowingWaterMediocre' // {ally}
+  | 'reason.synergy.zekesEngage' // {ally}
+  | 'reason.synergy.knightsVowCarry' // {ally}
+  | 'reason.synergy.mixedDamageAp' // {adCount}
+  | 'reason.synergy.mixedDamageAd' // {apCount}
+  | 'reason.synergy.dpsWithCc' // {ally}
+  | 'reason.synergy.aoeWithEngage' // {ally}
+
+  // ---- Gold Advisor -------------------------------------------------------
+  | 'nav.goldAdvisor'
+  | 'goldAdvisor.title'
+  | 'goldAdvisor.goldInput'
+  | 'goldAdvisor.champion'
+  | 'goldAdvisor.role'
+  | 'goldAdvisor.recommended'
+  | 'goldAdvisor.empty'
+  | 'goldAdvisor.efficiency'
+  | 'goldAdvisor.buildComponent'
+
+  // ---- Patch Trends ---------------------------------------------------------
+  | 'trend.title'
+  | 'trend.winRate'
+  | 'trend.patches'
+  | 'trend.noData'
+
+  // ---- Multi-search ---------------------------------------------------------
+  | 'nav.multisearch'
+  | 'multisearch.title'
+  | 'multisearch.subtitle'
+  | 'multisearch.placeholder'
+  | 'multisearch.search'
+  | 'multisearch.games'
+  | 'multisearch.notFound'
+  | 'multisearch.error'
+
+  // ---- Leaderboard ----------------------------------------------------------
+  | 'nav.leaderboard'
+  | 'leaderboard.title'
+  | 'leaderboard.rank'
+  | 'leaderboard.player'
+  | 'leaderboard.tier'
+  | 'leaderboard.lp'
+  | 'leaderboard.winRate'
+  | 'leaderboard.games'
+  | 'leaderboard.topChampions'
+  | 'leaderboard.noData'
+
+  // ---- Build Simulator (What-if) --------------------------------------------
+  | 'nav.simulator'
+  | 'simulator.title'
+  | 'simulator.subtitle'
+  | 'simulator.yourChampion'
+  | 'simulator.enemyTeam'
+  | 'simulator.addEnemy'
+  | 'simulator.removeEnemy'
+  | 'simulator.recommend'
+  | 'simulator.searchChampion'
+
+  // ---- Roast My Build -------------------------------------------------------
+  | 'nav.roast'
+  | 'roast.title'
+  | 'roast.subtitle'
+  | 'roast.inputLabel'
+  | 'roast.analyze'
+  | 'roast.score'
+  | 'roast.optimal'
+  | 'roast.actual'
+  | 'roast.good'
+  | 'roast.bad'
+  | 'roast.share'
+  | 'roast.noData';
 
 type Dict = Readonly<Record<TranslationKey, string>>;
 
@@ -301,6 +384,18 @@ const pl: Dict = {
   'champion.cooldown':                 'Czas odnowienia',
   'champion.cost':                     'Koszt',
   'champion.range':                    'Zasięg',
+  'champion.detail.runeTable':         'Tabela run (szczegółowa)',
+  'champion.detail.noRuneTable':       'Zbieranie danych o runach...',
+
+  'champion.counterTips':              'Wskazówki strategiczne',
+  'counterTip.antiHeal':               'Kup anty-heal -- {champion} mocno się leczy, Grievous Wounds obniży skuteczność leczenia.',
+  'counterTip.buildArmor':             'Buduj armor -- {champion} zadaje głównie obrażenia fizyczne, opancerz się.',
+  'counterTip.buildMr':                'Buduj MR -- {champion} zadaje głównie obrażenia magiczne, weź odporność magiczną.',
+  'counterTip.respectEngage':          'Szanuj engage -- {champion} potrafi szybko wskakiwać, trzymaj dystans i pilnuj pozycji.',
+  'counterTip.tenacityVsCc':           'Kup tenacity -- {champion} ma dużo CC, rozważ Mercury Treads lub Tenacity w runach.',
+  'counterTip.pokeSafe':               'Graj bezpiecznie vs poke -- {champion} ma mocny poke, unikaj niepotrzebnych wymian i farmij pod wieżą.',
+  'counterTip.allInWindow':            'Szukaj okna na all-in -- {champion} jest słabszy we wczesnej grze, wymuś walki zanim się rozkręci.',
+  'counterTip.scaleAdvantage':         'Skalujesz się lepiej -- farmij spokojnie i unikaj ryzykownych walek, czas gra na twoją korzyść vs {champion}.',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -415,6 +510,66 @@ const pl: Dict = {
   'reason.synergy.ardentFriendly':        'Synergia z {ally} (AS carry)',
   'reason.synergy.ardentUnfriendly':      'Słabe z {ally} (brak skalowania AS)',
   'reason.synergy.flowingWaterMediocre':  'Średnie z {ally}',
+  'reason.synergy.zekesEngage':           'Synergia z {ally} (engage aktywuje efekt)',
+  'reason.synergy.knightsVowCarry':       'Ochrona dla {ally} (hyper carry)',
+  'reason.synergy.mixedDamageAp':         'AP daje mieszane obrażenia ({adCount} AD sojuszników)',
+  'reason.synergy.mixedDamageAd':         'AD daje mieszane obrażenia ({apCount} AP sojuszników)',
+  'reason.synergy.dpsWithCc':             'DPS synergia z CC od {ally}',
+  'reason.synergy.aoeWithEngage':         'AoE synergia z engage od {ally}',
+
+  'nav.goldAdvisor':            'Doradca zlota',
+  'goldAdvisor.title':          'Doradca zlota',
+  'goldAdvisor.goldInput':      'Twoje zloto',
+  'goldAdvisor.champion':       'Champion (opcjonalnie)',
+  'goldAdvisor.role':           'Rola (opcjonalnie)',
+  'goldAdvisor.recommended':    'Rekomendowane zakupy',
+  'goldAdvisor.empty':          'Wpisz zloto, zeby zobaczyc rekomendacje',
+  'goldAdvisor.efficiency':     'Efektywnosc',
+  'goldAdvisor.buildComponent': 'Komponent buildu',
+
+  'trend.title':   'Trend patchowy',
+  'trend.winRate':  'Win Rate',
+  'trend.patches':  'Patche',
+  'trend.noData':   'Brak danych trendow',
+  'nav.multisearch':       'Multi-search',
+  'multisearch.title':     'Multi-search / Lobby Scanner',
+  'multisearch.subtitle':  'Wklej Riot ID graczy lub czat z lobby',
+  'multisearch.placeholder': 'Gracz1#TAG, Gracz2#TAG...',
+  'multisearch.search':    'Szukaj',
+  'multisearch.games':     'gier',
+  'multisearch.notFound':  'Nie znaleziono',
+  'multisearch.error':     'Blad wyszukiwania',
+  'nav.leaderboard':       'Ranking',
+  'leaderboard.title':     'Ranking graczy',
+  'leaderboard.rank':      '#',
+  'leaderboard.player':    'Gracz',
+  'leaderboard.tier':      'Tier',
+  'leaderboard.lp':        'LP',
+  'leaderboard.winRate':   'Win Rate',
+  'leaderboard.games':     'Gry',
+  'leaderboard.topChampions': 'Top Championow',
+  'leaderboard.noData':    'Brak danych rankingowych',
+  'nav.simulator':         'Symulator',
+  'simulator.title':       'Symulator buildow',
+  'simulator.subtitle':    'Sprawdz jak zmieni sie build przy roznych skladach wrogów',
+  'simulator.yourChampion': 'Twoj champion',
+  'simulator.enemyTeam':   'Druzyna wroga',
+  'simulator.addEnemy':    'Dodaj wroga...',
+  'simulator.removeEnemy': 'Usun',
+  'simulator.recommend':   'Rekomenduj build',
+  'simulator.searchChampion': 'Szukaj championa...',
+  'nav.roast':             'Roast Build',
+  'roast.title':           'Roast My Build',
+  'roast.subtitle':        'Sprawdz jak dobry byl Twoj build w ostatniej grze',
+  'roast.inputLabel':      'Riot ID',
+  'roast.analyze':         'Analizuj',
+  'roast.score':           'Wynik',
+  'roast.optimal':         'Optymalny',
+  'roast.actual':          'Twoj build',
+  'roast.good':            'Dobre wybory',
+  'roast.bad':             'Do poprawy',
+  'roast.share':           'Udostepnij wynik',
+  'roast.noData':          'Brak danych',
 };
 
 // ----------------------------------------------------------------------------
@@ -473,6 +628,18 @@ const en: Dict = {
   'champion.cooldown':                 'Cooldown',
   'champion.cost':                     'Cost',
   'champion.range':                    'Range',
+  'champion.detail.runeTable':         'Rune Table (detailed)',
+  'champion.detail.noRuneTable':       'Collecting rune data...',
+
+  'champion.counterTips':              'Strategy Tips',
+  'counterTip.antiHeal':               'Buy anti-heal -- {champion} has strong healing, Grievous Wounds will cut their sustain.',
+  'counterTip.buildArmor':             'Build armor -- {champion} deals mostly physical damage, prioritize armor items.',
+  'counterTip.buildMr':                'Build MR -- {champion} deals mostly magic damage, prioritize magic resist items.',
+  'counterTip.respectEngage':          'Respect the engage -- {champion} can gap-close quickly, maintain spacing and watch your positioning.',
+  'counterTip.tenacityVsCc':           'Buy tenacity -- {champion} has heavy CC, consider Mercury Treads or Tenacity runes.',
+  'counterTip.pokeSafe':               'Play safe vs poke -- {champion} has strong poke, avoid unnecessary trades and farm under tower.',
+  'counterTip.allInWindow':            'Look for all-in windows -- {champion} is weaker early, force fights before they scale.',
+  'counterTip.scaleAdvantage':         'You outscale -- farm safely and avoid risky fights, time is on your side vs {champion}.',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -587,6 +754,66 @@ const en: Dict = {
   'reason.synergy.ardentFriendly':        'Synergy with {ally} (AS carry)',
   'reason.synergy.ardentUnfriendly':      'Weak with {ally} (no AS scaling)',
   'reason.synergy.flowingWaterMediocre':  'Mediocre with {ally}',
+  'reason.synergy.zekesEngage':           'Synergy with {ally} (engage procs effect)',
+  'reason.synergy.knightsVowCarry':       'Protection for {ally} (hyper carry)',
+  'reason.synergy.mixedDamageAp':         'AP provides mixed damage ({adCount} AD allies)',
+  'reason.synergy.mixedDamageAd':         'AD provides mixed damage ({apCount} AP allies)',
+  'reason.synergy.dpsWithCc':             'DPS synergy with CC from {ally}',
+  'reason.synergy.aoeWithEngage':         'AoE synergy with engage from {ally}',
+
+  'nav.goldAdvisor':            'Gold Advisor',
+  'goldAdvisor.title':          'Gold Advisor',
+  'goldAdvisor.goldInput':      'Your gold',
+  'goldAdvisor.champion':       'Champion (optional)',
+  'goldAdvisor.role':           'Role (optional)',
+  'goldAdvisor.recommended':    'Recommended purchases',
+  'goldAdvisor.empty':          'Enter your gold to see recommendations',
+  'goldAdvisor.efficiency':     'Efficiency',
+  'goldAdvisor.buildComponent': 'Build component',
+
+  'trend.title':   'Patch Trend',
+  'trend.winRate':  'Win Rate',
+  'trend.patches':  'Patches',
+  'trend.noData':   'No trend data available',
+  'nav.multisearch':       'Multi-search',
+  'multisearch.title':     'Multi-search / Lobby Scanner',
+  'multisearch.subtitle':  'Paste Riot IDs or lobby chat to scout all players',
+  'multisearch.placeholder': 'Player1#TAG, Player2#TAG...',
+  'multisearch.search':    'Search',
+  'multisearch.games':     'games',
+  'multisearch.notFound':  'Not found',
+  'multisearch.error':     'Search failed',
+  'nav.leaderboard':       'Leaderboard',
+  'leaderboard.title':     'Leaderboard',
+  'leaderboard.rank':      '#',
+  'leaderboard.player':    'Player',
+  'leaderboard.tier':      'Tier',
+  'leaderboard.lp':        'LP',
+  'leaderboard.winRate':   'Win Rate',
+  'leaderboard.games':     'Games',
+  'leaderboard.topChampions': 'Top Champions',
+  'leaderboard.noData':    'No leaderboard data available',
+  'nav.simulator':         'Simulator',
+  'simulator.title':       'Build Simulator',
+  'simulator.subtitle':    'See how your build changes with different enemy compositions',
+  'simulator.yourChampion': 'Your Champion',
+  'simulator.enemyTeam':   'Enemy Team',
+  'simulator.addEnemy':    'Add enemy...',
+  'simulator.removeEnemy': 'Remove',
+  'simulator.recommend':   'Recommend Build',
+  'simulator.searchChampion': 'Search champion...',
+  'nav.roast':             'Roast Build',
+  'roast.title':           'Roast My Build',
+  'roast.subtitle':        'See how good your build was in your last game',
+  'roast.inputLabel':      'Riot ID',
+  'roast.analyze':         'Analyze',
+  'roast.score':           'Score',
+  'roast.optimal':         'Optimal',
+  'roast.actual':          'Your build',
+  'roast.good':            'Good choices',
+  'roast.bad':             'Needs improvement',
+  'roast.share':           'Share result',
+  'roast.noData':          'No data',
 };
 
 // ----------------------------------------------------------------------------
@@ -645,6 +872,18 @@ const de: Dict = {
   'champion.cooldown':                 'Abklingzeit',
   'champion.cost':                     'Kosten',
   'champion.range':                    'Reichweite',
+  'champion.detail.runeTable':         'Runen-Tabelle (detailliert)',
+  'champion.detail.noRuneTable':       'Runendaten werden gesammelt...',
+
+  'champion.counterTips':              'Strategie-Tipps',
+  'counterTip.antiHeal':               'Kaufe Anti-Heal -- {champion} heilt sich stark, Grievous Wounds reduziert die Heilung.',
+  'counterTip.buildArmor':             'Baue Ruestung -- {champion} verursacht hauptsaechlich physischen Schaden, priorisiere Ruestungsitems.',
+  'counterTip.buildMr':                'Baue MR -- {champion} verursacht hauptsaechlich magischen Schaden, priorisiere Magieresistenz.',
+  'counterTip.respectEngage':          'Respektiere den Engage -- {champion} kann schnell heranruecken, halte Abstand und achte auf deine Positionierung.',
+  'counterTip.tenacityVsCc':           'Kaufe Tenacity -- {champion} hat starkes CC, ziehe Mercury Treads oder Tenacity-Runen in Betracht.',
+  'counterTip.pokeSafe':               'Spiele sicher gegen Poke -- {champion} hat starken Poke, vermeide unnoetige Trades und farme unter dem Turm.',
+  'counterTip.allInWindow':            'Suche All-in-Fenster -- {champion} ist frueh schwaecher, erzwinge Kaempfe bevor er skaliert.',
+  'counterTip.scaleAdvantage':         'Du skalierst besser -- farme sicher und vermeide riskante Kaempfe, die Zeit spielt fuer dich vs {champion}.',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -759,6 +998,66 @@ const de: Dict = {
   'reason.synergy.ardentFriendly':        'Synergie mit {ally} (AS-Carry)',
   'reason.synergy.ardentUnfriendly':      'Schwach mit {ally} (keine AS-Skalierung)',
   'reason.synergy.flowingWaterMediocre':  'Mittelmäßig mit {ally}',
+  'reason.synergy.zekesEngage':           'Synergie mit {ally} (Engage löst Effekt aus)',
+  'reason.synergy.knightsVowCarry':       'Schutz für {ally} (Hyper-Carry)',
+  'reason.synergy.mixedDamageAp':         'AP bietet gemischten Schaden ({adCount} AD-Verbündete)',
+  'reason.synergy.mixedDamageAd':         'AD bietet gemischten Schaden ({apCount} AP-Verbündete)',
+  'reason.synergy.dpsWithCc':             'DPS-Synergie mit CC von {ally}',
+  'reason.synergy.aoeWithEngage':         'AoE-Synergie mit Engage von {ally}',
+
+  'nav.goldAdvisor':            'Gold-Berater',
+  'goldAdvisor.title':          'Gold-Berater',
+  'goldAdvisor.goldInput':      'Dein Gold',
+  'goldAdvisor.champion':       'Champion (optional)',
+  'goldAdvisor.role':           'Rolle (optional)',
+  'goldAdvisor.recommended':    'Empfohlene Einkaufe',
+  'goldAdvisor.empty':          'Gib dein Gold ein, um Empfehlungen zu sehen',
+  'goldAdvisor.efficiency':     'Effizienz',
+  'goldAdvisor.buildComponent': 'Build-Komponente',
+
+  'trend.title':   'Patch-Trend',
+  'trend.winRate':  'Siegrate',
+  'trend.patches':  'Patches',
+  'trend.noData':   'Keine Trenddaten verfügbar',
+  'nav.multisearch':       'Multi-Suche',
+  'multisearch.title':     'Multi-Suche / Lobby Scanner',
+  'multisearch.subtitle':  'Riot IDs oder Lobby-Chat einfügen',
+  'multisearch.placeholder': 'Spieler1#TAG, Spieler2#TAG...',
+  'multisearch.search':    'Suchen',
+  'multisearch.games':     'Spiele',
+  'multisearch.notFound':  'Nicht gefunden',
+  'multisearch.error':     'Suche fehlgeschlagen',
+  'nav.leaderboard':       'Rangliste',
+  'leaderboard.title':     'Rangliste',
+  'leaderboard.rank':      '#',
+  'leaderboard.player':    'Spieler',
+  'leaderboard.tier':      'Tier',
+  'leaderboard.lp':        'LP',
+  'leaderboard.winRate':   'Siegrate',
+  'leaderboard.games':     'Spiele',
+  'leaderboard.topChampions': 'Top-Champions',
+  'leaderboard.noData':    'Keine Ranglistendaten verfügbar',
+  'nav.simulator':         'Simulator',
+  'simulator.title':       'Build-Simulator',
+  'simulator.subtitle':    'Sieh wie sich dein Build bei verschiedenen Gegnern ändert',
+  'simulator.yourChampion': 'Dein Champion',
+  'simulator.enemyTeam':   'Gegnerteam',
+  'simulator.addEnemy':    'Gegner hinzufügen...',
+  'simulator.removeEnemy': 'Entfernen',
+  'simulator.recommend':   'Build empfehlen',
+  'simulator.searchChampion': 'Champion suchen...',
+  'nav.roast':             'Build Roast',
+  'roast.title':           'Roast My Build',
+  'roast.subtitle':        'Wie gut war dein Build im letzten Spiel?',
+  'roast.inputLabel':      'Riot ID',
+  'roast.analyze':         'Analysieren',
+  'roast.score':           'Punktzahl',
+  'roast.optimal':         'Optimal',
+  'roast.actual':          'Dein Build',
+  'roast.good':            'Gute Wahl',
+  'roast.bad':             'Verbesserungsbedarf',
+  'roast.share':           'Ergebnis teilen',
+  'roast.noData':          'Keine Daten',
 };
 
 // ----------------------------------------------------------------------------
@@ -817,6 +1116,18 @@ const es: Dict = {
   'champion.cooldown':                 'Enfriamiento',
   'champion.cost':                     'Coste',
   'champion.range':                    'Alcance',
+  'champion.detail.runeTable':         'Tabla de runas (detallada)',
+  'champion.detail.noRuneTable':       'Recopilando datos de runas...',
+
+  'champion.counterTips':              'Consejos estrategicos',
+  'counterTip.antiHeal':               'Compra anti-curacion -- {champion} se cura mucho, Heridas Incurables reducira su sustain.',
+  'counterTip.buildArmor':             'Construye armadura -- {champion} hace dano principalmente fisico, prioriza objetos de armadura.',
+  'counterTip.buildMr':                'Construye MR -- {champion} hace dano principalmente magico, prioriza resistencia magica.',
+  'counterTip.respectEngage':          'Respeta el engage -- {champion} puede cerrar distancia rapidamente, mantente alejado y cuida tu posicion.',
+  'counterTip.tenacityVsCc':           'Compra tenacidad -- {champion} tiene mucho CC, considera Mercury Treads o runas de Tenacidad.',
+  'counterTip.pokeSafe':               'Juega seguro vs poke -- {champion} tiene poke fuerte, evita intercambios innecesarios y farmea bajo torre.',
+  'counterTip.allInWindow':            'Busca ventanas de all-in -- {champion} es mas debil temprano, fuerza peleas antes de que escale.',
+  'counterTip.scaleAdvantage':         'Escalas mejor -- farmea seguro y evita peleas arriesgadas, el tiempo juega a tu favor vs {champion}.',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -931,6 +1242,66 @@ const es: Dict = {
   'reason.synergy.ardentFriendly':        'Sinergia con {ally} (carry AS)',
   'reason.synergy.ardentUnfriendly':      'Débil con {ally} (sin escalado de AS)',
   'reason.synergy.flowingWaterMediocre':  'Mediocre con {ally}',
+  'reason.synergy.zekesEngage':           'Sinergia con {ally} (engage activa efecto)',
+  'reason.synergy.knightsVowCarry':       'Protección para {ally} (hyper carry)',
+  'reason.synergy.mixedDamageAp':         'AP da daño mixto ({adCount} aliados AD)',
+  'reason.synergy.mixedDamageAd':         'AD da daño mixto ({apCount} aliados AP)',
+  'reason.synergy.dpsWithCc':             'Sinergia DPS con CC de {ally}',
+  'reason.synergy.aoeWithEngage':         'Sinergia AoE con engage de {ally}',
+
+  'nav.goldAdvisor':            'Asesor de oro',
+  'goldAdvisor.title':          'Asesor de oro',
+  'goldAdvisor.goldInput':      'Tu oro',
+  'goldAdvisor.champion':       'Campeon (opcional)',
+  'goldAdvisor.role':           'Rol (opcional)',
+  'goldAdvisor.recommended':    'Compras recomendadas',
+  'goldAdvisor.empty':          'Introduce tu oro para ver recomendaciones',
+  'goldAdvisor.efficiency':     'Eficiencia',
+  'goldAdvisor.buildComponent': 'Componente de build',
+
+  'trend.title':   'Tendencia de parche',
+  'trend.winRate':  'Tasa de victoria',
+  'trend.patches':  'Parches',
+  'trend.noData':   'Sin datos de tendencia',
+  'nav.multisearch':       'Multi-búsqueda',
+  'multisearch.title':     'Multi-búsqueda / Escáner de Lobby',
+  'multisearch.subtitle':  'Pega Riot IDs o el chat del lobby',
+  'multisearch.placeholder': 'Jugador1#TAG, Jugador2#TAG...',
+  'multisearch.search':    'Buscar',
+  'multisearch.games':     'partidas',
+  'multisearch.notFound':  'No encontrado',
+  'multisearch.error':     'Error en la búsqueda',
+  'nav.leaderboard':       'Clasificación',
+  'leaderboard.title':     'Clasificación',
+  'leaderboard.rank':      '#',
+  'leaderboard.player':    'Jugador',
+  'leaderboard.tier':      'Tier',
+  'leaderboard.lp':        'LP',
+  'leaderboard.winRate':   'Win Rate',
+  'leaderboard.games':     'Partidas',
+  'leaderboard.topChampions': 'Top Campeones',
+  'leaderboard.noData':    'Sin datos de clasificación',
+  'nav.simulator':         'Simulador',
+  'simulator.title':       'Simulador de Builds',
+  'simulator.subtitle':    'Mira cómo cambia tu build con diferentes enemigos',
+  'simulator.yourChampion': 'Tu Campeón',
+  'simulator.enemyTeam':   'Equipo Enemigo',
+  'simulator.addEnemy':    'Añadir enemigo...',
+  'simulator.removeEnemy': 'Eliminar',
+  'simulator.recommend':   'Recomendar Build',
+  'simulator.searchChampion': 'Buscar campeón...',
+  'nav.roast':             'Roast Build',
+  'roast.title':           'Roast My Build',
+  'roast.subtitle':        'Mira qué tan bueno fue tu build en tu última partida',
+  'roast.inputLabel':      'Riot ID',
+  'roast.analyze':         'Analizar',
+  'roast.score':           'Puntuación',
+  'roast.optimal':         'Óptimo',
+  'roast.actual':          'Tu build',
+  'roast.good':            'Buenas elecciones',
+  'roast.bad':             'Necesita mejora',
+  'roast.share':           'Compartir resultado',
+  'roast.noData':          'Sin datos',
 };
 
 // ----------------------------------------------------------------------------
@@ -989,6 +1360,18 @@ const ru: Dict = {
   'champion.cooldown':                 'Перезарядка',
   'champion.cost':                     'Стоимость',
   'champion.range':                    'Дальность',
+  'champion.detail.runeTable':         'Таблица рун (детально)',
+  'champion.detail.noRuneTable':       'Сбор данных о рунах...',
+
+  'champion.counterTips':              'Стратегические советы',
+  'counterTip.antiHeal':               'Купи анти-хил -- {champion} сильно лечится, Grievous Wounds снизит его сустейн.',
+  'counterTip.buildArmor':             'Собирай армор -- {champion} наносит в основном физический урон, приоритизируй предметы на броню.',
+  'counterTip.buildMr':                'Собирай MR -- {champion} наносит в основном магический урон, приоритизируй магическое сопротивление.',
+  'counterTip.respectEngage':          'Уважай энгейдж -- {champion} быстро закрывает дистанцию, держи расстояние и следи за позицией.',
+  'counterTip.tenacityVsCc':           'Купи tenacity -- {champion} имеет много CC, рассмотри Mercury Treads или руны на Tenacity.',
+  'counterTip.pokeSafe':               'Играй безопасно vs поук -- {champion} сильно поукает, избегай ненужных разменов и фарми под башней.',
+  'counterTip.allInWindow':            'Ищи окна для all-in -- {champion} слабее в ранней игре, навязывай драки до его скейла.',
+  'counterTip.scaleAdvantage':         'Ты скейлишься лучше -- фарми спокойно и избегай рискованных драк, время играет за тебя vs {champion}.',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -1103,6 +1486,66 @@ const ru: Dict = {
   'reason.synergy.ardentFriendly':        'Синергия с {ally} (AS-керри)',
   'reason.synergy.ardentUnfriendly':      'Слабо с {ally} (нет скейла AS)',
   'reason.synergy.flowingWaterMediocre':  'Средне с {ally}',
+  'reason.synergy.zekesEngage':           'Синергия с {ally} (энгейдж активирует эффект)',
+  'reason.synergy.knightsVowCarry':       'Защита для {ally} (гипер-керри)',
+  'reason.synergy.mixedDamageAp':         'AP даёт смешанный урон ({adCount} AD союзников)',
+  'reason.synergy.mixedDamageAd':         'AD даёт смешанный урон ({apCount} AP союзников)',
+  'reason.synergy.dpsWithCc':             'Синергия DPS с CC от {ally}',
+  'reason.synergy.aoeWithEngage':         'AoE синергия с энгейджем от {ally}',
+
+  'nav.goldAdvisor':            'Советник по золоту',
+  'goldAdvisor.title':          'Советник по золоту',
+  'goldAdvisor.goldInput':      'Твое золото',
+  'goldAdvisor.champion':       'Чемпион (необязательно)',
+  'goldAdvisor.role':           'Роль (необязательно)',
+  'goldAdvisor.recommended':    'Рекомендуемые покупки',
+  'goldAdvisor.empty':          'Введи золото, чтобы увидеть рекомендации',
+  'goldAdvisor.efficiency':     'Эффективность',
+  'goldAdvisor.buildComponent': 'Компонент билда',
+
+  'trend.title':   'Тренд патча',
+  'trend.winRate':  'Винрейт',
+  'trend.patches':  'Патчи',
+  'trend.noData':   'Нет данных о трендах',
+  'nav.multisearch':       'Мульти-поиск',
+  'multisearch.title':     'Мульти-поиск / Сканер лобби',
+  'multisearch.subtitle':  'Вставьте Riot ID или чат лобби',
+  'multisearch.placeholder': 'Игрок1#TAG, Игрок2#TAG...',
+  'multisearch.search':    'Поиск',
+  'multisearch.games':     'игр',
+  'multisearch.notFound':  'Не найден',
+  'multisearch.error':     'Ошибка поиска',
+  'nav.leaderboard':       'Рейтинг',
+  'leaderboard.title':     'Рейтинг игроков',
+  'leaderboard.rank':      '#',
+  'leaderboard.player':    'Игрок',
+  'leaderboard.tier':      'Тир',
+  'leaderboard.lp':        'LP',
+  'leaderboard.winRate':   'Винрейт',
+  'leaderboard.games':     'Игры',
+  'leaderboard.topChampions': 'Топ чемпионов',
+  'leaderboard.noData':    'Нет данных рейтинга',
+  'nav.simulator':         'Симулятор',
+  'simulator.title':       'Симулятор билдов',
+  'simulator.subtitle':    'Посмотрите как меняется билд при разных составах врагов',
+  'simulator.yourChampion': 'Ваш чемпион',
+  'simulator.enemyTeam':   'Команда врага',
+  'simulator.addEnemy':    'Добавить врага...',
+  'simulator.removeEnemy': 'Удалить',
+  'simulator.recommend':   'Рекомендовать билд',
+  'simulator.searchChampion': 'Найти чемпиона...',
+  'nav.roast':             'Roast Build',
+  'roast.title':           'Roast My Build',
+  'roast.subtitle':        'Узнайте насколько хорош был ваш билд в последней игре',
+  'roast.inputLabel':      'Riot ID',
+  'roast.analyze':         'Анализировать',
+  'roast.score':           'Оценка',
+  'roast.optimal':         'Оптимальный',
+  'roast.actual':          'Ваш билд',
+  'roast.good':            'Хороший выбор',
+  'roast.bad':             'Нужно улучшить',
+  'roast.share':           'Поделиться результатом',
+  'roast.noData':          'Нет данных',
 };
 
 // ----------------------------------------------------------------------------
@@ -1161,6 +1604,18 @@ const uk: Dict = {
   'champion.cooldown':                 'Перезарядка',
   'champion.cost':                     'Вартість',
   'champion.range':                    'Дальність',
+  'champion.detail.runeTable':         'Таблиця рун (детально)',
+  'champion.detail.noRuneTable':       'Збір даних про руни...',
+
+  'champion.counterTips':              'Стратегічні поради',
+  'counterTip.antiHeal':               'Купи анти-хіл -- {champion} сильно лікується, Grievous Wounds знизить його сустейн.',
+  'counterTip.buildArmor':             'Збирай армор -- {champion} завдає переважно фізичної шкоди, пріоритизуй предмети на броню.',
+  'counterTip.buildMr':                'Збирай MR -- {champion} завдає переважно магічної шкоди, пріоритизуй магічний опір.',
+  'counterTip.respectEngage':          'Поважай енгейдж -- {champion} швидко закриває дистанцію, тримай відстань і стеж за позицією.',
+  'counterTip.tenacityVsCc':           'Купи tenacity -- {champion} має багато CC, розглянь Mercury Treads або руни на Tenacity.',
+  'counterTip.pokeSafe':               'Грай безпечно vs поук -- {champion} сильно поукає, уникай непотрібних розмінів і фарми під вежею.',
+  'counterTip.allInWindow':            'Шукай вікна для all-in -- {champion} слабший у ранній грі, нав\'язуй бійки до його скейлу.',
+  'counterTip.scaleAdvantage':         'Ти скейлишся краще -- фарми спокійно та уникай ризикованих бійок, час грає за тебе vs {champion}.',
 
   'home.hero.title1':      'DRAFT',
   'home.hero.title2':      'SENSE',
@@ -1275,6 +1730,66 @@ const uk: Dict = {
   'reason.synergy.ardentFriendly':        'Синергія з {ally} (AS-керрі)',
   'reason.synergy.ardentUnfriendly':      'Слабко з {ally} (немає скейлу AS)',
   'reason.synergy.flowingWaterMediocre':  'Середньо з {ally}',
+  'reason.synergy.zekesEngage':           'Синергія з {ally} (енгейдж активує ефект)',
+  'reason.synergy.knightsVowCarry':       'Захист для {ally} (гіпер-керрі)',
+  'reason.synergy.mixedDamageAp':         'AP дає змішану шкоду ({adCount} AD союзників)',
+  'reason.synergy.mixedDamageAd':         'AD дає змішану шкоду ({apCount} AP союзників)',
+  'reason.synergy.dpsWithCc':             'Синергія DPS з CC від {ally}',
+  'reason.synergy.aoeWithEngage':         'AoE синергія з енгейджем від {ally}',
+
+  'nav.goldAdvisor':            'Радник по золоту',
+  'goldAdvisor.title':          'Радник по золоту',
+  'goldAdvisor.goldInput':      'Твое золото',
+  'goldAdvisor.champion':       'Чемпіон (необов\'язково)',
+  'goldAdvisor.role':           'Роль (необов\'язково)',
+  'goldAdvisor.recommended':    'Рекомендовані покупки',
+  'goldAdvisor.empty':          'Введи золото, щоб побачити рекомендації',
+  'goldAdvisor.efficiency':     'Ефективність',
+  'goldAdvisor.buildComponent': 'Компонент білду',
+
+  'trend.title':   'Тренд патчу',
+  'trend.winRate':  'Вінрейт',
+  'trend.patches':  'Патчі',
+  'trend.noData':   'Немає даних про тренди',
+  'nav.multisearch':       'Мульти-пошук',
+  'multisearch.title':     'Мульти-пошук / Сканер лобі',
+  'multisearch.subtitle':  'Вставте Riot ID або чат лобі',
+  'multisearch.placeholder': 'Гравець1#TAG, Гравець2#TAG...',
+  'multisearch.search':    'Пошук',
+  'multisearch.games':     'ігор',
+  'multisearch.notFound':  'Не знайдено',
+  'multisearch.error':     'Помилка пошуку',
+  'nav.leaderboard':       'Рейтинг',
+  'leaderboard.title':     'Рейтинг гравців',
+  'leaderboard.rank':      '#',
+  'leaderboard.player':    'Гравець',
+  'leaderboard.tier':      'Тір',
+  'leaderboard.lp':        'LP',
+  'leaderboard.winRate':   'Вінрейт',
+  'leaderboard.games':     'Ігри',
+  'leaderboard.topChampions': 'Топ чемпіонів',
+  'leaderboard.noData':    'Немає даних рейтингу',
+  'nav.simulator':         'Симулятор',
+  'simulator.title':       'Симулятор білдів',
+  'simulator.subtitle':    'Подивіться як змінюється білд при різних складах ворогів',
+  'simulator.yourChampion': 'Ваш чемпіон',
+  'simulator.enemyTeam':   'Команда ворога',
+  'simulator.addEnemy':    'Додати ворога...',
+  'simulator.removeEnemy': 'Видалити',
+  'simulator.recommend':   'Рекомендувати білд',
+  'simulator.searchChampion': 'Знайти чемпіона...',
+  'nav.roast':             'Roast Build',
+  'roast.title':           'Roast My Build',
+  'roast.subtitle':        'Дізнайтеся наскільки добрий був ваш білд в останній грі',
+  'roast.inputLabel':      'Riot ID',
+  'roast.analyze':         'Аналізувати',
+  'roast.score':           'Оцінка',
+  'roast.optimal':         'Оптимальний',
+  'roast.actual':          'Ваш білд',
+  'roast.good':            'Гарний вибір',
+  'roast.bad':             'Потрібно покращити',
+  'roast.share':           'Поділитися результатом',
+  'roast.noData':          'Немає даних',
 };
 
 /** Master translation table — injected into TranslationService. */

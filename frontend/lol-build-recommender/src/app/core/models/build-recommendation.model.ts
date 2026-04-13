@@ -130,3 +130,17 @@ export interface ItemInfo {
   /** Full CDN URL to the item icon for the current patch — sent by the backend. */
   imageUrl?: string;
 }
+
+/** Response from GET /api/build/gold-efficient */
+export interface GoldRecommendation {
+  gold: number;
+  championId?: number | null;
+  role?: string | null;
+  items: GoldEfficientItem[];
+}
+
+export interface GoldEfficientItem {
+  item: ItemInfo;
+  efficiency: number;
+  isRecommendedComponent: boolean;
+}

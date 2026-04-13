@@ -3,21 +3,28 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, shareReplay, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ActiveGame } from '../models/active-game.model';
-import { BuildRecommendation } from '../models/build-recommendation.model';
+import { BuildRecommendation, GoldRecommendation } from '../models/build-recommendation.model';
 import { Region } from '../models/region.model';
 import { Champion } from '../models/champion.model';
+import { MultiSearchResult } from '../models/multisearch.model';
 import {
   DDragonChampionDetail,
   DDragonChampionDetailResponse,
   ChampionBuildStat,
   RunePage,
+  IndividualRuneStat,
   SpellSet,
   MatchupStat,
   TierListEntry,
   MetaShiftEntry,
+  PatchTrend,
   BuildOrderEntry,
   SkillOrderEntry,
   StartingItemEntry,
+  CounterTip,
+  DuoSynergy,
+  ModeTierListResponse,
+  ProBuild,
 } from '../models/champion-detail.model';
 
 @Injectable({ providedIn: 'root' })
@@ -52,6 +59,17 @@ export class ApiService {
     };
     if (role) params['role'] = role;
     return this.http.get<BuildRecommendation>(`${this.baseUrl}/build/recommend`, { params });
+  }
+
+  getGoldEfficientItems(
+    gold: number,
+    championId?: number,
+    role?: string,
+  ): Observable<GoldRecommendation> {
+    const params: Record<string, string> = { gold: gold.toString() };
+    if (championId) params['championId'] = championId.toString();
+    if (role) params['role'] = role;
+    return this.http.get<GoldRecommendation>(`${this.baseUrl}/build/gold-efficient`, { params });
   }
 
   getRegions(): Observable<Region[]> {
@@ -90,6 +108,12 @@ export class ApiService {
     return this.http.get<RunePage[]>(
       `${this.baseUrl}/data/buildstats/${championId}/${lane}/runes`,
       { params: { count: count.toString() } },
+    );
+  }
+
+  getIndividualRuneStats(championId: number, lane: string): Observable<IndividualRuneStat[]> {
+    return this.http.get<IndividualRuneStat[]>(
+      `${this.baseUrl}/data/buildstats/${championId}/${lane}/runes/individual`,
     );
   }
 
@@ -138,6 +162,18 @@ export class ApiService {
     );
   }
 
+  getPatchTrends(championId: number, role?: string): Observable<PatchTrend[]> {
+    const params: Record<string, string> = {};
+    if (role) params['role'] = role;
+    return this.http.get<PatchTrend[]>(`${this.baseUrl}/data/trends/${championId}`, { params });
+  }
+
+  getCounterTips(championId: number, opponentId: number): Observable<CounterTip[]> {
+    return this.http.get<CounterTip[]>(
+      `${this.baseUrl}/data/countertips/${championId}/${opponentId}`,
+    );
+  }
+
   /**
    * Full champion catalog with positions/tags. Used by TeamShuffleComponent
    * to filter champions by role. Backend returns a Dictionary<int, ChampionInfo>
@@ -148,6 +184,18 @@ export class ApiService {
    * Cached via shareReplay so switching between `/` and `/shuffle` doesn't
    * re-fetch ~150 champions on every navigation.
    */
+  multiSearch(players: string, region: string): Observable<{ players: MultiSearchResult[] }> {
+    return this.http.get<{ players: MultiSearchResult[] }>(`${this.baseUrl}/game/multisearch`, {
+      params: { players, region },
+    });
+  }
+
+  getSummonerProfile(gameName: string, tagLine: string, region: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/game/summoner`, {
+      params: { gameName, tagLine, region },
+    });
+  }
+
   getChampions(): Observable<Champion[]> {
     if (!this.championsCache$) {
       this.championsCache$ = this.http
@@ -160,5 +208,23 @@ export class ApiService {
         );
     }
     return this.championsCache$;
+  }
+
+  getModeTierList(mode: string, role?: string): Observable<ModeTierListResponse> {
+    const params: Record<string, string> = {};
+    if (role) params['role'] = role;
+    return this.http.get<ModeTierListResponse>(`${this.baseUrl}/data/tierlist/${mode}`, { params });
+  }
+
+  getDuoSynergies(lane?: string): Observable<DuoSynergy[]> {
+    const params: Record<string, string> = {};
+    if (lane) params['lane'] = lane;
+    return this.http.get<DuoSynergy[]>(`${this.baseUrl}/data/duosynergy`, { params });
+  }
+
+  getProBuilds(region: string = 'euw1', count: number = 20): Observable<ProBuild[]> {
+    return this.http.get<ProBuild[]>(`${this.baseUrl}/data/probuilds`, {
+      params: { region, count: count.toString() },
+    });
   }
 }

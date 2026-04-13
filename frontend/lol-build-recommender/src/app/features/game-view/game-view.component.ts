@@ -544,12 +544,6 @@ export class GameViewComponent implements OnInit {
   // =====================================================================================
 
   onDragStart(ev: DragEvent, participant: Participant, team: Team) {
-    console.debug('[dragstart]', {
-      champion: participant.championName,
-      championId: participant.championId,
-      lane: participant.lane,
-      teamId: team.teamId,
-    });
 
     // Fresh state for every drag — stops leftover values from a cancelled drag
     // blocking the next one.
@@ -591,23 +585,15 @@ export class GameViewComponent implements OnInit {
     const sourceChampionId = this.draggedChampionId();
     const sourceTeamId = this.draggedFromTeamId();
 
-    console.debug('[drop]', {
-      sourceChampionId,
-      target: { championId: target.championId, champion: target.championName, lane: target.lane },
-      sourceTeamId,
-      targetTeamId: team.teamId,
-    });
 
     // Always clear state FIRST — regardless of whether the swap actually runs,
     // so a subsequent drag starts from a clean slate.
     this.clearDragState();
 
     if (sourceChampionId == null || sourceChampionId === target.championId) {
-      console.debug('[drop] skipped — no source or self-drop');
       return;
     }
     if (sourceTeamId !== team.teamId) {
-      console.debug('[drop] skipped — cross-team drop blocked');
       return;
     }
 
@@ -615,7 +601,6 @@ export class GameViewComponent implements OnInit {
   }
 
   onDragEnd() {
-    console.debug('[dragend]');
     this.clearDragState();
   }
 
@@ -703,8 +688,6 @@ export class GameViewComponent implements OnInit {
     const sourceA = targetTeam.participants[idxA];
     const sourceB = targetTeam.participants[idxB];
 
-    console.debug('[swapLanes] swapping',
-      { teamId, a: `${sourceA.championName}@${sourceA.lane}`, b: `${sourceB.championName}@${sourceB.lane}` });
 
     // Build the new participant array by SHALLOW-COPYING then replacing exactly two indices.
     const newParticipants: Participant[] = [...targetTeam.participants];

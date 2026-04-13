@@ -357,6 +357,7 @@ export class ChampionsListComponent implements OnInit {
       next: (champs) => {
         this.allChampions.set(champs.sort((a, b) => a.name.localeCompare(b.name)));
       },
+      error: () => {},
     });
   }
 

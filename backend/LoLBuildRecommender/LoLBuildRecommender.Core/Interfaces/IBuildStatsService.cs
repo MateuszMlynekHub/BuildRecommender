@@ -42,11 +42,53 @@ public interface IBuildStatsService
     Task<IReadOnlyList<SkillOrderEntry>> GetSkillOrdersAsync(
         int championId, string lane, int count = 5, CancellationToken ct = default);
 
+    /// <summary>Per-individual-rune win/pick rates aggregated across all rune pages for champion+lane.</summary>
+    Task<IReadOnlyList<IndividualRuneStat>> GetIndividualRuneStatsAsync(
+        int championId, string lane, CancellationToken ct = default);
+
     /// <summary>Tier list: aggregated win/pick rates per champion per role on current patch.</summary>
     Task<IReadOnlyList<TierListEntry>> GetTierListAsync(string? role = null, CancellationToken ct = default);
 
     /// <summary>Meta shift: champions with biggest win rate changes between current and previous patch.</summary>
     Task<IReadOnlyList<MetaShiftEntry>> GetMetaShiftAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Win rate history for a champion across the last several patches. Optionally filtered
+    /// by role. Returns one PatchTrend per patch (ordered oldest → newest) so the frontend
+    /// can render a line chart. Empty list when no historical data exists.
+    /// </summary>
+    Task<IReadOnlyList<PatchTrend>> GetPatchTrendsAsync(
+        int championId, string? role = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Generate contextual counter tips by comparing two champions' attributes
+    /// (healing, CC, damage type, engage, poke, etc.). Returns translation keys
+    /// for the frontend to render in the user's language.
+    /// </summary>
+    Task<IReadOnlyList<CounterTip>> GetCounterTipsAsync(
+        int championId, int opponentChampionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Duo synergy data: champion pairs that perform well together, optionally filtered by lane.
+    /// Generated from matchup stats by pairing champions that commonly co-occur in the same matches.
+    /// </summary>
+    Task<IReadOnlyList<DuoSynergy>> GetDuoSynergiesAsync(
+        string? lane = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Recent high-elo builds formatted as "pro builds". Until a real pro-player database
+    /// is available, returns synthetic data derived from Challenger/Grandmaster matches.
+    /// </summary>
+    Task<IReadOnlyList<ProBuild>> GetProBuildsAsync(
+        string region = "euw1", int count = 20, CancellationToken ct = default);
+
+    /// <summary>
+    /// Win rate bucketed by game duration for a specific champion. Since duration isn't
+    /// stored per-match yet, returns synthetic estimates based on total picks and champion
+    /// archetype tags. Optionally filtered by role.
+    /// </summary>
+    Task<IReadOnlyList<GameLengthStat>> GetGameLengthStatsAsync(
+        int championId, string? role = null, CancellationToken ct = default);
 
     /// <summary>Metadata about the last successful crawl — patch, time, sample size.</summary>
     Task<BuildStatsMetadata> GetMetadataAsync(CancellationToken ct = default);

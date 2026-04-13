@@ -246,12 +246,22 @@ using (var scope = app.Services.CreateScope())
 // Uses raw ADO.NET so it doesn't trigger EF Core's command failure logger on misses.
 static async Task<bool> ColumnExistsAsync(BuildStatsDbContext ctx, string table, string column)
 {
+    // Allowlist validation — only internal callers pass these values, but defense-in-depth
+    // prevents accidental injection if signatures change later.
+    var allowedTables = new HashSet<string> { "CrawlMetadata", "ItemStats", "RuneStats", "SpellStats", "MatchupStats", "BuildOrderStats", "SkillOrderStats", "BanStats", "StartingItemStats", "ProcessedMatches" };
+    if (!allowedTables.Contains(table))
+        throw new ArgumentException($"Unknown table: {table}", nameof(table));
+
     var conn = ctx.Database.GetDbConnection();
     if (conn.State != System.Data.ConnectionState.Open)
         await conn.OpenAsync();
 
     await using var cmd = conn.CreateCommand();
-    cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'";
+    cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = @column";
+    var param = cmd.CreateParameter();
+    param.ParameterName = "@column";
+    param.Value = column;
+    cmd.Parameters.Add(param);
     var result = await cmd.ExecuteScalarAsync();
     return result is not null && Convert.ToInt64(result) > 0;
 }

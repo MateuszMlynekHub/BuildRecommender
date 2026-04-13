@@ -181,8 +181,20 @@ public class BuildStatsCrawler
         string modeLabel;
         if (isBackfill)
         {
-            startTime = DateTimeOffset.UtcNow.AddDays(-_options.BackfillDays);
-            modeLabel = $"backfill {_options.BackfillDays}d";
+            // If a fixed backfill date is configured (e.g. season start), use it
+            // instead of the relative BackfillDays. This pulls ALL matches since
+            // that date, across multiple patches.
+            if (!string.IsNullOrEmpty(_options.BackfillSinceDate)
+                && DateTimeOffset.TryParse(_options.BackfillSinceDate, out var sinceDate))
+            {
+                startTime = sinceDate;
+                modeLabel = $"backfill since {sinceDate:yyyy-MM-dd}";
+            }
+            else
+            {
+                startTime = DateTimeOffset.UtcNow.AddDays(-_options.BackfillDays);
+                modeLabel = $"backfill {_options.BackfillDays}d";
+            }
         }
         else
         {
@@ -318,9 +330,13 @@ public class BuildStatsCrawler
             if (match.QueueId != 420) { skippedWrongQueue++; continue; }
 
             var matchPatch = ToMajorMinor(match.GameVersion);
-            if (!string.Equals(matchPatch, patch, StringComparison.Ordinal))
+            // When backfilling from a fixed date (season start), accept matches from
+            // ANY patch — they all get aggregated under the current patch tag so all
+            // endpoints see the data. This gives us a large dataset from day one.
+            // In incremental mode, keep the strict same-patch filter.
+            var acceptCrossPatch = !string.IsNullOrEmpty(_options.BackfillSinceDate) && isBackfill;
+            if (!acceptCrossPatch && !string.Equals(matchPatch, patch, StringComparison.Ordinal))
             {
-                // Patch mismatch — still mark as processed so we don't re-fetch it next time.
                 skippedWrongPatch++;
                 batchMatchIds.Add(matchId);
                 continue;

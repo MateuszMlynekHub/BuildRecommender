@@ -14,11 +14,13 @@ public class GameController : ControllerBase
 {
     private readonly IRiotApiService _riotApi;
     private readonly IGameDataService _gameData;
+    private readonly ILogger<GameController> _logger;
 
-    public GameController(IRiotApiService riotApi, IGameDataService gameData)
+    public GameController(IRiotApiService riotApi, IGameDataService gameData, ILogger<GameController> logger)
     {
         _riotApi = riotApi;
         _gameData = gameData;
+        _logger = logger;
     }
 
     [HttpGet("active")]
@@ -147,14 +149,12 @@ public class GameController : ControllerBase
         List<RankedEntry> rankedEntries = [];
         try
         {
-            // Cast to access extended method (interface only has GetSummonerIdByPuuidAsync)
             if (_riotApi is Infrastructure.RiotApi.RiotApiService riotSvc)
             {
                 var (summonerId, iconId, level) = await riotSvc.GetSummonerByPuuidAsync(puuid, region);
                 profileIconId = iconId;
                 summonerLevel = level;
-                if (summonerId is not null)
-                    rankedEntries = await _riotApi.GetLeagueEntriesAsync(summonerId, region);
+                rankedEntries = await _riotApi.GetLeagueEntriesAsync(summonerId ?? puuid, region);
             }
             else
             {
@@ -163,20 +163,25 @@ public class GameController : ControllerBase
                     rankedEntries = await _riotApi.GetLeagueEntriesAsync(summonerId, region);
             }
         }
-        catch { /* rank fetch is non-critical */ }
+        catch (Exception ex) { _logger.LogWarning(ex, "Rank fetch failed for puuid={Puuid}", puuid); }
 
         // Fetch recent match IDs (last 20)
         string[] matchIds;
         try { matchIds = await _riotApi.GetRankedMatchIdsAsync(puuid, region, 20); }
-        catch { matchIds = []; }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to fetch match IDs for puuid={Puuid}", puuid); matchIds = []; }
 
         var champions = await _gameData.GetChampionsAsync();
         var version = await _gameData.GetCurrentVersionAsync();
 
+        // Fetch champion mastery (top 5 for profile)
+        List<ChampionMastery> masteries = [];
+        try { masteries = await _riotApi.GetChampionMasteriesAsync(puuid, region, 5); }
+        catch (Exception ex) { _logger.LogDebug(ex, "Failed to fetch masteries for puuid={Puuid}", puuid); }
+
         // Collect raw match data for stats computation BEFORE serialization
         var rawMatchData = new List<(string matchId, string gameVersion, List<MatchParticipant> participants)>();
 
-        foreach (var matchId in matchIds.Take(10))
+        foreach (var matchId in matchIds.Take(20))
         {
             try
             {
@@ -184,7 +189,7 @@ public class GameController : ControllerBase
                 if (match is not null)
                     rawMatchData.Add((matchId, match.GameVersion, match.Participants));
             }
-            catch { }
+            catch (Exception ex) { _logger.LogDebug(ex, "Failed to fetch match details for {MatchId}", matchId); }
         }
 
         // Compute stats from strongly-typed data
@@ -220,8 +225,8 @@ public class GameController : ControllerBase
             .OrderByDescending(l => l.games)
             .ToList();
 
-        // Recently played with
-        var playedWithDict = new Dictionary<string, (string champName, int games, int wins)>();
+        // Recently played with — aggregate by player PUUID
+        var playedWithDict = new Dictionary<string, (int games, int wins)>();
         foreach (var (_, _, participants) in rawMatchData)
         {
             var me = participants.FirstOrDefault(p => p.Puuid == puuid);
@@ -230,19 +235,51 @@ public class GameController : ControllerBase
             {
                 if (teammate.Puuid == puuid || teammate.TeamId != me.TeamId) continue;
                 if (string.IsNullOrEmpty(teammate.Puuid)) continue;
-                champions.TryGetValue(teammate.ChampionId, out var champInfo);
-                var name = champInfo?.Name ?? "Unknown";
                 if (!playedWithDict.TryGetValue(teammate.Puuid, out var entry))
-                    entry = (name, 0, 0);
-                playedWithDict[teammate.Puuid] = (name, entry.games + 1, entry.wins + (me.Win ? 1 : 0));
+                    entry = (0, 0);
+                playedWithDict[teammate.Puuid] = (entry.games + 1, entry.wins + (me.Win ? 1 : 0));
             }
         }
-        var playedWith = playedWithDict
+        var topPlayedWith = playedWithDict
             .Where(kv => kv.Value.games >= 2)
             .OrderByDescending(kv => kv.Value.games)
             .Take(10)
-            .Select(kv => new { puuid = kv.Key, lastChampion = kv.Value.champName, games = kv.Value.games, wins = kv.Value.wins })
             .ToList();
+
+        // Resolve player names and icons for recently played with
+        var playedWith = new List<object>();
+        if (_riotApi is Infrastructure.RiotApi.RiotApiService riotSvc2)
+        {
+            foreach (var kv in topPlayedWith)
+            {
+                string playerName = "Unknown";
+                string playerTag = "";
+                int playerIconId = 0;
+                try
+                {
+                    var account = await riotSvc2.GetAccountByPuuidAsync(kv.Key, region);
+                    if (account is not null)
+                    {
+                        playerName = account.Value.gameName;
+                        playerTag = account.Value.tagLine;
+                    }
+                    var (_, iconId, _) = await riotSvc2.GetSummonerByPuuidAsync(kv.Key, region);
+                    playerIconId = iconId;
+                }
+                catch (Exception ex) { _logger.LogDebug(ex, "Failed to resolve account for puuid={Puuid}", kv.Key); }
+                playedWith.Add(new
+                {
+                    puuid = kv.Key,
+                    gameName = playerName,
+                    tagLine = playerTag,
+                    profileIconUrl = playerIconId > 0
+                        ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/profileicon/{playerIconId}.png"
+                        : "",
+                    games = kv.Value.games,
+                    wins = kv.Value.wins,
+                });
+            }
+        }
 
         // Serialize matches for response
         var matches = rawMatchData.Select(m => new
@@ -289,9 +326,375 @@ public class GameController : ControllerBase
             topChampions,
             laneStats,
             recentlyPlayedWith = playedWith,
+            championMasteries = masteries.Select(m =>
+            {
+                champions.TryGetValue(m.ChampionId, out var champ);
+                return new
+                {
+                    championId = m.ChampionId,
+                    championName = champ?.Name ?? "Unknown",
+                    championImage = champ is not null
+                        ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champ.ImageFileName}" : "",
+                    championLevel = m.ChampionLevel,
+                    championPoints = m.ChampionPoints,
+                };
+            }).ToList(),
             matchCount = matchIds.Length,
             recentMatches = matches,
         });
+    }
+
+    [HttpGet("matches")]
+    public async Task<ActionResult> GetMoreMatches(
+        [FromQuery] string gameName,
+        [FromQuery] string tagLine,
+        [FromQuery] string region,
+        [FromQuery] int start = 20,
+        [FromQuery] int count = 20)
+    {
+        if (string.IsNullOrWhiteSpace(gameName) || string.IsNullOrWhiteSpace(tagLine))
+            return BadRequest("gameName and tagLine are required");
+
+        count = Math.Clamp(count, 1, 100);
+        start = Math.Max(start, 0);
+
+        string puuid;
+        try { puuid = await _riotApi.GetPuuidByRiotIdAsync(gameName, tagLine, region); }
+        catch (HttpRequestException ex) { return MapRiotError(ex, "resolve Riot ID"); }
+
+        string[] matchIds;
+        try { matchIds = await _riotApi.GetRankedMatchIdsAsync(puuid, region, count, start: start); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to fetch match IDs for puuid={Puuid}, start={Start}", puuid, start); matchIds = []; }
+
+        var champions = await _gameData.GetChampionsAsync();
+        var version = await _gameData.GetCurrentVersionAsync();
+
+        var matches = new List<object>();
+        foreach (var matchId in matchIds)
+        {
+            try
+            {
+                var match = await _riotApi.GetMatchDetailsAsync(matchId, region);
+                if (match is not null)
+                {
+                    matches.Add(new
+                    {
+                        matchId,
+                        gameVersion = match.GameVersion,
+                        participants = match.Participants.Select(p =>
+                        {
+                            champions.TryGetValue(p.ChampionId, out var champ);
+                            return new
+                            {
+                                puuid = p.Puuid,
+                                championId = p.ChampionId,
+                                championName = champ?.Name ?? "Unknown",
+                                championImage = champ is not null
+                                    ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champ.ImageFileName}" : "",
+                                teamPosition = p.TeamPosition,
+                                teamId = p.TeamId,
+                                kills = p.Kills,
+                                deaths = p.Deaths,
+                                assists = p.Assists,
+                                cs = p.TotalMinionsKilled + p.NeutralMinionsKilled,
+                                wardsPlaced = p.WardsPlaced,
+                                damage = p.TotalDamageDealtToChampions,
+                                gold = p.GoldEarned,
+                                level = p.ChampLevel,
+                                win = p.Win,
+                                items = p.Items.Where(id => id != 0).ToArray(),
+                            };
+                        }).ToList(),
+                    });
+                }
+            }
+            catch (Exception ex) { _logger.LogDebug(ex, "Failed to fetch match details for {MatchId}", matchId); }
+        }
+
+        return Ok(new { matches, hasMore = matchIds.Length == count });
+    }
+
+    /// <summary>
+    /// Multi-search: look up multiple summoners in parallel. Accepts comma-separated
+    /// Riot IDs (name#tag) or a pasted lobby chat. Returns basic profile data for each.
+    /// </summary>
+    [HttpGet("multisearch")]
+    public async Task<ActionResult> MultiSearch(
+        [FromQuery] string players,
+        [FromQuery] string region)
+    {
+        if (string.IsNullOrWhiteSpace(players))
+            return BadRequest("players parameter is required (comma-separated Riot IDs)");
+
+        // Parse input: support "name#tag" comma separated, or lobby chat format "joined lobby\nname1\nname2"
+        var riotIds = ParseRiotIds(players);
+        if (riotIds.Count == 0)
+            return BadRequest("No valid Riot IDs found");
+
+        var champions = await _gameData.GetChampionsAsync();
+        var version = await _gameData.GetCurrentVersionAsync();
+
+        // Look up all players in parallel (max 10)
+        var tasks = riotIds.Take(10).Select(async rid =>
+        {
+            try
+            {
+                var puuid = await _riotApi.GetPuuidByRiotIdAsync(rid.gameName, rid.tagLine, region);
+
+                // Fetch rank
+                List<RankedEntry> ranked = [];
+                try
+                {
+                    if (_riotApi is Infrastructure.RiotApi.RiotApiService riotSvc)
+                    {
+                        var (summonerId, iconId, level) = await riotSvc.GetSummonerByPuuidAsync(puuid, region);
+                        ranked = await _riotApi.GetLeagueEntriesAsync(summonerId ?? puuid, region);
+
+                        // Fetch recent matches (last 10 for quick stats)
+                        string[] matchIds;
+                        try { matchIds = await _riotApi.GetRankedMatchIdsAsync(puuid, region, 10); }
+                        catch (Exception ex) { _logger.LogDebug(ex, "Multisearch: failed to fetch matches for puuid={Puuid}", puuid); matchIds = []; }
+
+                        var recentStats = new List<object>();
+                        int totalWins = 0, totalGames = 0;
+                        var champCounts = new Dictionary<int, (int games, int wins)>();
+
+                        foreach (var matchId in matchIds.Take(10))
+                        {
+                            try
+                            {
+                                var match = await _riotApi.GetMatchDetailsAsync(matchId, region);
+                                var me = match?.Participants.FirstOrDefault(p => p.Puuid == puuid);
+                                if (me is not null)
+                                {
+                                    totalGames++;
+                                    if (me.Win) totalWins++;
+                                    if (!champCounts.TryGetValue(me.ChampionId, out var cc))
+                                        cc = (0, 0);
+                                    champCounts[me.ChampionId] = (cc.games + 1, cc.wins + (me.Win ? 1 : 0));
+                                }
+                            }
+                            catch (Exception ex) { _logger.LogDebug(ex, "Multisearch: failed to process match for puuid={Puuid}", puuid); }
+                        }
+
+                        var topChamps = champCounts
+                            .OrderByDescending(kv => kv.Value.games)
+                            .Take(3)
+                            .Select(kv =>
+                            {
+                                champions.TryGetValue(kv.Key, out var champ);
+                                return new
+                                {
+                                    championId = kv.Key,
+                                    championName = champ?.Name ?? "Unknown",
+                                    championImage = champ is not null
+                                        ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champ.ImageFileName}" : "",
+                                    games = kv.Value.games,
+                                    wins = kv.Value.wins,
+                                };
+                            }).ToList();
+
+                        return (object)new
+                        {
+                            gameName = rid.gameName,
+                            tagLine = rid.tagLine,
+                            found = true,
+                            profileIconUrl = iconId > 0
+                                ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/profileicon/{iconId}.png" : "",
+                            summonerLevel = level,
+                            rankedEntries = ranked,
+                            recentGames = totalGames,
+                            recentWins = totalWins,
+                            recentWinRate = totalGames > 0 ? (double)totalWins / totalGames : 0,
+                            topChampions = topChamps,
+                        };
+                    }
+                }
+                catch (Exception ex) { _logger.LogDebug(ex, "Multisearch: failed to fetch rank/stats for {GameName}#{TagLine}", rid.gameName, rid.tagLine); }
+
+                return (object)new
+                {
+                    gameName = rid.gameName,
+                    tagLine = rid.tagLine,
+                    found = true,
+                    profileIconUrl = "",
+                    summonerLevel = 0L,
+                    rankedEntries = ranked,
+                    recentGames = 0,
+                    recentWins = 0,
+                    recentWinRate = 0.0,
+                    topChampions = Array.Empty<object>(),
+                };
+            }
+            catch
+            {
+                return (object)new
+                {
+                    gameName = rid.gameName,
+                    tagLine = rid.tagLine,
+                    found = false,
+                    error = "Player not found",
+                };
+            }
+        });
+
+        var results = await Task.WhenAll(tasks);
+        return Ok(new { players = results });
+    }
+
+    private static List<(string gameName, string tagLine)> ParseRiotIds(string input)
+    {
+        var result = new List<(string, string)>();
+
+        // Split by comma, newline, or semicolon
+        var parts = input.Split(new[] { ',', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var part in parts)
+        {
+            var trimmed = part.Trim();
+            // Skip common lobby chat noise
+            if (string.IsNullOrWhiteSpace(trimmed)) continue;
+            if (trimmed.StartsWith("joined", StringComparison.OrdinalIgnoreCase)) continue;
+
+            // Parse "name#tag" format
+            var hashIdx = trimmed.LastIndexOf('#');
+            if (hashIdx > 0 && hashIdx < trimmed.Length - 1)
+            {
+                var name = trimmed[..hashIdx].Trim();
+                var tag = trimmed[(hashIdx + 1)..].Trim();
+                if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(tag))
+                    result.Add((name, tag));
+            }
+        }
+
+        return result;
+    }
+
+    [HttpGet("mastery")]
+    public async Task<ActionResult> GetChampionMasteries(
+        [FromQuery] string gameName,
+        [FromQuery] string tagLine,
+        [FromQuery] string region)
+    {
+        if (string.IsNullOrWhiteSpace(gameName) || string.IsNullOrWhiteSpace(tagLine))
+            return BadRequest("gameName and tagLine are required");
+
+        string puuid;
+        try { puuid = await _riotApi.GetPuuidByRiotIdAsync(gameName, tagLine, region); }
+        catch (HttpRequestException ex) { return MapRiotError(ex, "resolve Riot ID"); }
+
+        var masteries = await _riotApi.GetChampionMasteriesAsync(puuid, region);
+        var champions = await _gameData.GetChampionsAsync();
+        var version = await _gameData.GetCurrentVersionAsync();
+
+        return Ok(masteries.Select(m =>
+        {
+            champions.TryGetValue(m.ChampionId, out var champ);
+            return new
+            {
+                championId = m.ChampionId,
+                championName = champ?.Name ?? "Unknown",
+                championImage = champ is not null
+                    ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{champ.ImageFileName}" : "",
+                championLevel = m.ChampionLevel,
+                championPoints = m.ChampionPoints,
+            };
+        }).ToList());
+    }
+
+    /// <summary>
+    /// Leaderboard: top players from Challenger/Grandmaster/Master tiers.
+    /// </summary>
+    [HttpGet("leaderboard")]
+    public async Task<ActionResult> GetLeaderboard(
+        [FromQuery] string region = "euw1",
+        [FromQuery] string tier = "challenger")
+    {
+        try
+        {
+            string[] puuids = tier.ToLowerInvariant() switch
+            {
+                "grandmaster" => await _riotApi.GetGrandmasterPuuidsAsync(region),
+                "master" => await _riotApi.GetMasterPuuidsAsync(region),
+                _ => await _riotApi.GetChallengerPuuidsAsync(region),
+            };
+
+            // The crawler methods return PUUIDs. We need to get league data.
+            // For leaderboard, we fetch league entries for the first N players.
+            var version = await _gameData.GetCurrentVersionAsync();
+            var entries = new List<object>();
+
+            // Limit to 50 players to avoid too many API calls
+            foreach (var puuid in puuids.Take(50))
+            {
+                try
+                {
+                    string? summonerId = null;
+                    int iconId = 0;
+                    long level = 0;
+
+                    if (_riotApi is Infrastructure.RiotApi.RiotApiService riotSvc)
+                    {
+                        var (sid, icon, lvl) = await riotSvc.GetSummonerByPuuidAsync(puuid, region);
+                        summonerId = sid;
+                        iconId = icon;
+                        level = lvl;
+                    }
+                    else
+                    {
+                        summonerId = await _riotApi.GetSummonerIdByPuuidAsync(puuid, region);
+                    }
+
+                    var ranked = summonerId is not null
+                        ? await _riotApi.GetLeagueEntriesAsync(summonerId, region)
+                        : new List<RankedEntry>();
+
+                    var soloQ = ranked.FirstOrDefault(r =>
+                        r.QueueType == "RANKED_SOLO_5x5");
+
+                    if (soloQ is null) continue;
+
+                    string gameName = "", tagLine = "";
+                    if (_riotApi is Infrastructure.RiotApi.RiotApiService riotSvc2)
+                    {
+                        var account = await riotSvc2.GetAccountByPuuidAsync(puuid, region);
+                        if (account is not null)
+                        {
+                            gameName = account.Value.gameName;
+                            tagLine = account.Value.tagLine;
+                        }
+                    }
+
+                    entries.Add(new
+                    {
+                        summonerId = summonerId ?? puuid,
+                        puuid,
+                        gameName,
+                        tagLine,
+                        tier = soloQ.Tier,
+                        rank = soloQ.Rank,
+                        leaguePoints = soloQ.LeaguePoints,
+                        wins = soloQ.Wins,
+                        losses = soloQ.Losses,
+                        profileIconUrl = iconId > 0
+                            ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/profileicon/{iconId}.png" : "",
+                    });
+                }
+                catch (Exception ex) { _logger.LogDebug(ex, "Leaderboard: failed to fetch data for puuid={Puuid}", puuid); }
+            }
+
+            // Sort by LP descending
+            var sorted = entries
+                .Cast<dynamic>()
+                .OrderByDescending(e => (int)e.leaguePoints)
+                .ToList();
+
+            return Ok(new { entries = sorted });
+        }
+        catch (HttpRequestException ex)
+        {
+            return MapRiotError(ex, "fetch leaderboard");
+        }
     }
 
     private ActionResult MapRiotError(HttpRequestException ex, string operation)

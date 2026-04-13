@@ -17,6 +17,20 @@ const serverRoutes: ServerRoute[] = [
   { path: 'champion/:key', renderMode: RenderMode.Client },
   { path: 'guide/:slug', renderMode: RenderMode.Client },
   { path: 'summoner/:region/:name', renderMode: RenderMode.Client },
+  { path: 'summoner/:region/:name/mastery', renderMode: RenderMode.Client },
+  // Dynamic pages that fetch API data on init — can't prerender without a server.
+  { path: 'multisearch', renderMode: RenderMode.Client },
+  { path: 'leaderboard', renderMode: RenderMode.Client },
+  { path: 'simulator', renderMode: RenderMode.Client },
+  { path: 'roast', renderMode: RenderMode.Client },
+  { path: 'roast/team', renderMode: RenderMode.Client },
+  { path: 'gold-advisor', renderMode: RenderMode.Client },
+  { path: 'mode-tierlist', renderMode: RenderMode.Client },
+  { path: 'duo-synergy', renderMode: RenderMode.Client },
+  { path: 'pro-builds', renderMode: RenderMode.Client },
+  { path: 'best-builders', renderMode: RenderMode.Client },
+  { path: 'build-battle', renderMode: RenderMode.Client },
+  { path: 'wrapped', renderMode: RenderMode.Client },
   { path: '**', renderMode: RenderMode.Prerender },
 ];
 

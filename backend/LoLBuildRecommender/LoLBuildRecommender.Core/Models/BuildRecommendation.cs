@@ -61,6 +61,30 @@ public record BuildVariant
     /// sooner you own the Tear, the stronger the completed item is.
     /// </summary>
     public List<EarlyComponent> EarlyComponents { get; init; } = [];
+
+    /// <summary>
+    /// The same items from <see cref="Items"/> split into early/mid/late game phases.
+    /// Non-boots items are distributed: items 1-2 → early, 3-4 → mid, 5-6 → late.
+    /// Boots are excluded from phasing since they are bought opportunistically.
+    /// </summary>
+    public List<ItemizationPhase> Phases { get; init; } = [];
+}
+
+/// <summary>
+/// A game-phase grouping of recommended items. Non-boots items from the main build
+/// are split into three windows so the player knows which items to prioritize at
+/// each stage of the game.
+/// </summary>
+public record ItemizationPhase
+{
+    /// <summary>Phase identifier: "early", "mid", or "late".</summary>
+    public string Phase { get; init; } = string.Empty;
+
+    /// <summary>Translation key for the phase label (e.g. "phase.early").</summary>
+    public string PhaseKey { get; init; } = string.Empty;
+
+    /// <summary>Items recommended for this phase of the game.</summary>
+    public List<RecommendedItem> Items { get; init; } = [];
 }
 
 /// <summary>
@@ -211,6 +235,40 @@ public record TeamThreatProfile
     public int MarksmanCount { get; init; }
     public int FighterCount { get; init; }
     public int BurstCount { get; init; }
+}
+
+/// <summary>
+/// Response for the gold-efficient item recommendation endpoint. Given a gold budget
+/// and optional champion context, returns items the player can afford right now,
+/// sorted by gold efficiency (stats per gold spent).
+/// </summary>
+public record GoldRecommendation
+{
+    public int Gold { get; init; }
+    public int? ChampionId { get; init; }
+    public string? Role { get; init; }
+    public List<GoldEfficientItem> Items { get; init; } = [];
+}
+
+/// <summary>
+/// A single item recommendation from the gold advisor. Carries the item metadata,
+/// a gold-efficiency score, and a human-readable reason tag.
+/// </summary>
+public record GoldEfficientItem
+{
+    public ItemInfo Item { get; init; } = null!;
+
+    /// <summary>
+    /// Aggregate gold efficiency score — higher means more stats per gold.
+    /// Computed as sum(stat * reference_gold_value) / item_total_gold.
+    /// </summary>
+    public double Efficiency { get; init; }
+
+    /// <summary>
+    /// Whether this item is a component of the champion's recommended build
+    /// (when champion context is provided). UI can highlight these.
+    /// </summary>
+    public bool IsRecommendedComponent { get; init; }
 }
 
 public record EnemyClassification

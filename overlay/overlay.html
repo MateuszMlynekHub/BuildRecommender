@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DraftSense Overlay</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: rgba(10, 15, 25, 0.92);
+      color: #c8aa6e;
+      border: 1px solid rgba(200, 170, 110, 0.3);
+      border-radius: 8px;
+      overflow: hidden;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; background: rgba(200, 170, 110, 0.1);
+      border-bottom: 1px solid rgba(200, 170, 110, 0.2);
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .close-btn {
+      -webkit-app-region: no-drag;
+      background: none; border: none; color: #c8aa6e; cursor: pointer;
+      font-size: 16px; opacity: 0.7;
+    }
+    .close-btn:hover { opacity: 1; }
+    .content {
+      padding: 10px 12px; max-height: calc(100vh - 40px); overflow-y: auto;
+      -webkit-app-region: no-drag;
+    }
+    .status { font-size: 11px; color: #7a7a7a; margin-bottom: 8px; }
+    .status.active { color: #4caf50; }
+    .build-section { margin-bottom: 12px; }
+    .section-title {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: rgba(200, 170, 110, 0.7); margin-bottom: 6px; font-weight: 600;
+    }
+    .items-row { display: flex; gap: 4px; flex-wrap: wrap; }
+    .item {
+      width: 36px; height: 36px; border-radius: 4px;
+      border: 1px solid rgba(200, 170, 110, 0.3);
+      background-size: cover; position: relative;
+    }
+    .item.owned { border-color: #4caf50; }
+    .item.next { border-color: #ff9800; animation: pulse 1.5s infinite; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 4px rgba(255, 152, 0, 0.3); }
+      50% { box-shadow: 0 0 10px rgba(255, 152, 0, 0.6); }
+    }
+    .item-name {
+      position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
+      font-size: 8px; white-space: nowrap; color: #aaa;
+      display: none;
+    }
+    .item:hover .item-name { display: block; }
+    .threat-bar {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 3px;
+      font-size: 10px;
+    }
+    .threat-bar label { width: 30px; color: #7a7a7a; }
+    .threat-bar .bar {
+      flex: 1; height: 4px; background: rgba(255,255,255,0.1);
+      border-radius: 2px; overflow: hidden;
+    }
+    .threat-bar .bar-fill { height: 100%; border-radius: 2px; }
+    .threat-bar .bar-fill.ad { background: #c8aa6e; }
+    .threat-bar .bar-fill.ap { background: #9b6fe3; }
+    .threat-bar .bar-fill.heal { background: #4caf50; }
+    .threat-bar .bar-fill.cc { background: #f44336; }
+    .threat-bar .pct { width: 28px; text-align: right; color: #aaa; }
+    .midgame-tip {
+      padding: 6px 8px; background: rgba(255, 152, 0, 0.1);
+      border: 1px solid rgba(255, 152, 0, 0.3); border-radius: 4px;
+      font-size: 11px; margin-top: 8px;
+    }
+    .midgame-tip .tip-label { font-weight: 700; color: #ff9800; margin-bottom: 2px; }
+    .setup-form {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .setup-form input, .setup-form select {
+      background: rgba(0,0,0,0.3); border: 1px solid rgba(200,170,110,0.3);
+      color: #c8aa6e; padding: 6px 8px; font-size: 12px; border-radius: 3px;
+    }
+    .setup-form button {
+      background: linear-gradient(135deg, #c8aa6e, #8a6d3b);
+      color: #0a0a0a; border: none; padding: 8px; font-weight: 700;
+      font-size: 12px; border-radius: 3px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span>DraftSense</span>
+    <button class="close-btn" onclick="window.draftsense.toggleOverlay()">x</button>
+  </div>
+  <div class="content" id="content">
+    <div class="status" id="status">Waiting for game...</div>
+
+    <div id="setup">
+      <div class="setup-form">
+        <input id="gameName" placeholder="Riot Name" />
+        <input id="tagLine" placeholder="Tag" />
+        <select id="region">
+          <option value="euw1">EUW</option>
+          <option value="eun1">EUNE</option>
+          <option value="na1">NA</option>
+          <option value="kr">KR</option>
+        </select>
+        <button onclick="startTracking()">Start Tracking</button>
+      </div>
+    </div>
+
+    <div id="build-display" style="display:none">
+      <div class="build-section">
+        <div class="section-title">Recommended Build</div>
+        <div class="items-row" id="build-items"></div>
+      </div>
+      <div class="build-section">
+        <div class="section-title">Threat Profile</div>
+        <div id="threat-bars"></div>
+      </div>
+      <div id="midgame-section" style="display:none">
+        <div class="midgame-tip">
+          <div class="tip-label">Next Buy</div>
+          <div id="next-buy"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function startTracking() {
+      const gameName = document.getElementById('gameName').value;
+      const tagLine = document.getElementById('tagLine').value;
+      const region = document.getElementById('region').value;
+      if (!gameName || !tagLine) return;
+
+      document.getElementById('status').textContent = 'Scanning for game...';
+      document.getElementById('status').className = 'status';
+      window.draftsense.startPolling(gameName, tagLine, region);
+    }
+
+    window.draftsense.onGameDetected(async (game) => {
+      document.getElementById('status').textContent = 'In Game';
+      document.getElementById('status').className = 'status active';
+      document.getElementById('setup').style.display = 'none';
+      document.getElementById('build-display').style.display = 'block';
+
+      // Find my participant
+      const allParticipants = game.teams.flatMap(t => t.participants);
+      const me = allParticipants.find(p => p.puuid === game.searchedPuuid);
+      if (!me) return;
+
+      const myTeam = game.teams.find(t => t.participants.some(p => p.puuid === game.searchedPuuid));
+      const enemyTeam = game.teams.find(t => t !== myTeam);
+      const enemyIds = enemyTeam ? enemyTeam.participants.map(p => p.championId) : [];
+      const allyIds = myTeam ? myTeam.participants.filter(p => p.puuid !== game.searchedPuuid).map(p => p.championId) : [];
+
+      const rec = await window.draftsense.getRecommendation(me.championId, enemyIds, allyIds, me.lane);
+      if (!rec) return;
+
+      // Render build
+      const variant = rec.variants[0]; // standard
+      const itemsDiv = document.getElementById('build-items');
+      itemsDiv.innerHTML = '';
+      for (const ri of variant.items) {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.style.backgroundImage = `url(${ri.item.imageUrl})`;
+        div.title = ri.item.name;
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'item-name';
+        nameSpan.textContent = ri.item.name;
+        div.appendChild(nameSpan);
+        itemsDiv.appendChild(div);
+      }
+
+      // Render threat profile
+      const tp = rec.enemyThreatProfile;
+      const barsDiv = document.getElementById('threat-bars');
+      barsDiv.innerHTML = '';
+      const threats = [
+        { label: 'AD', value: tp.adRatio, cls: 'ad' },
+        { label: 'AP', value: tp.apRatio, cls: 'ap' },
+        { label: 'Heal', value: tp.healingThreat, cls: 'heal' },
+        { label: 'CC', value: tp.ccThreat, cls: 'cc' },
+      ];
+      for (const t of threats) {
+        barsDiv.innerHTML += `
+          <div class="threat-bar">
+            <label>${t.label}</label>
+            <div class="bar"><div class="bar-fill ${t.cls}" style="width:${t.value*100}%"></div></div>
+            <span class="pct">${Math.round(t.value*100)}%</span>
+          </div>`;
+      }
+    });
+  </script>
+</body>
+</html>

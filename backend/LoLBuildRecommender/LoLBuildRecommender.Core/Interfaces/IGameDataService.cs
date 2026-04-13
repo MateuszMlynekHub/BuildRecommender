@@ -15,6 +15,9 @@ public interface IGameDataService
     /// </summary>
     Task<ItemInfo?> GetItemByIdAsync(int id);
 
+    /// <summary>Returns ALL items (components + completed) from the full Data Dragon pool.</summary>
+    Task<Dictionary<int, ItemInfo>> GetAllItemsAsync();
+
     Task<string> GetCurrentVersionAsync();
     Task EnsureDataLoadedAsync();
 }

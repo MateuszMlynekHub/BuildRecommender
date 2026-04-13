@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 using LoLBuildRecommender.Core.Interfaces;
 using LoLBuildRecommender.Core.Models;
 using LoLBuildRecommender.Infrastructure.RiotApi.Dtos;
@@ -9,10 +10,12 @@ namespace LoLBuildRecommender.Infrastructure.RiotApi;
 public class RiotApiService : IRiotApiService
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<RiotApiService> _logger;
 
-    public RiotApiService(IHttpClientFactory httpClientFactory)
+    public RiotApiService(IHttpClientFactory httpClientFactory, ILogger<RiotApiService> logger)
     {
         _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     public async Task<string> GetPuuidByRiotIdAsync(string gameName, string tagLine, string platform)
@@ -27,6 +30,18 @@ public class RiotApiService : IRiotApiService
 
         var account = await response.Content.ReadFromJsonAsync<RiotAccountDto>();
         return account?.Puuid ?? throw new InvalidOperationException("Could not resolve Riot ID");
+    }
+
+    public async Task<(string gameName, string tagLine)?> GetAccountByPuuidAsync(string puuid, string platform, CancellationToken ct = default)
+    {
+        var regionalRoute = RegionMapping.GetRegionalRoute(platform);
+        var client = _httpClientFactory.CreateClient("RiotApi");
+        var url = $"https://{regionalRoute}.api.riotgames.com/riot/account/v1/accounts/by-puuid/{puuid}";
+        var response = await client.GetAsync(url, ct);
+        if (!response.IsSuccessStatusCode) return null;
+        var account = await response.Content.ReadFromJsonAsync<RiotAccountDto>(cancellationToken: ct);
+        if (account is null || string.IsNullOrEmpty(account.GameName)) return null;
+        return (account.GameName, account.TagLine);
     }
 
     public Task<string[]> GetChallengerPuuidsAsync(string platform, CancellationToken ct = default)
@@ -58,14 +73,15 @@ public class RiotApiService : IRiotApiService
         string platform,
         int count,
         DateTimeOffset? startTime = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        int start = 0)
     {
         var regionalRoute = RegionMapping.GetRegionalRoute(platform);
         var client = _httpClientFactory.CreateClient("RiotApi");
 
         // Riot caps `count` at 100 per request.
         var clampedCount = Math.Clamp(count, 1, 100);
-        var url = $"https://{regionalRoute}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count={clampedCount}&queue=420";
+        var url = $"https://{regionalRoute}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start={start}&count={clampedCount}&queue=420";
         if (startTime.HasValue)
         {
             url += $"&startTime={startTime.Value.ToUnixTimeSeconds()}";
@@ -187,11 +203,16 @@ public class RiotApiService : IRiotApiService
         var client = _httpClientFactory.CreateClient("RiotApi");
         var url = $"https://{platform}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}";
         var response = await client.GetAsync(url, ct);
-        if (!response.IsSuccessStatusCode) return (null, 0, 0);
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Summoner v4 failed: {Status} for puuid={Puuid}", response.StatusCode, puuid);
+            return (null, 0, 0);
+        }
         var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: ct);
         var summonerId = json.TryGetProperty("id", out var id) ? id.GetString() : null;
         var iconId = json.TryGetProperty("profileIconId", out var icon) ? icon.GetInt32() : 0;
         var level = json.TryGetProperty("summonerLevel", out var lvl) ? lvl.GetInt64() : 0;
+        _logger.LogDebug("Summoner resolved: summonerId={SummonerId}, level={Level}", summonerId, level);
         return (summonerId, iconId, level);
     }
 
@@ -202,13 +223,29 @@ public class RiotApiService : IRiotApiService
         return summonerId;
     }
 
-    public async Task<List<RankedEntry>> GetLeagueEntriesAsync(string summonerId, string platform, CancellationToken ct = default)
+    public async Task<List<RankedEntry>> GetLeagueEntriesAsync(string summonerIdOrPuuid, string platform, CancellationToken ct = default)
     {
         var client = _httpClientFactory.CreateClient("RiotApi");
-        var url = $"https://{platform}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summonerId}";
+        // Try PUUID-based endpoint first (newer), fall back to summoner ID
+        var url = $"https://{platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/{summonerIdOrPuuid}";
         var response = await client.GetAsync(url, ct);
-        if (!response.IsSuccessStatusCode) return [];
-        var dtos = await response.Content.ReadFromJsonAsync<List<LeagueEntryFullDto>>(cancellationToken: ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning("League v4 by-puuid failed: {Status} body={Body}, trying by-summoner", response.StatusCode, body);
+            // Fallback to summoner ID endpoint
+            url = $"https://{platform}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summonerIdOrPuuid}";
+            response = await client.GetAsync(url, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                body = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning("League v4 by-summoner also failed: {Status} body={Body}", response.StatusCode, body);
+                return [];
+            }
+        }
+        var rawJson = await response.Content.ReadAsStringAsync(ct);
+        _logger.LogDebug("League v4 response length: {Length}", rawJson.Length);
+        var dtos = System.Text.Json.JsonSerializer.Deserialize<List<LeagueEntryFullDto>>(rawJson);
         if (dtos is null) return [];
         return dtos.Select(d => new RankedEntry
         {
@@ -218,6 +255,24 @@ public class RiotApiService : IRiotApiService
             LeaguePoints = d.LeaguePoints,
             Wins = d.Wins,
             Losses = d.Losses,
+        }).ToList();
+    }
+
+    public async Task<List<ChampionMastery>> GetChampionMasteriesAsync(string puuid, string platform, int? count = null, CancellationToken ct = default)
+    {
+        var client = _httpClientFactory.CreateClient("RiotApi");
+        var url = count.HasValue
+            ? $"https://{platform}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count={count.Value}"
+            : $"https://{platform}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}";
+        var response = await client.GetAsync(url, ct);
+        if (!response.IsSuccessStatusCode) return [];
+        var dtos = await response.Content.ReadFromJsonAsync<List<ChampionMasteryDto>>(cancellationToken: ct);
+        if (dtos is null) return [];
+        return dtos.Select(d => new ChampionMastery
+        {
+            ChampionId = d.ChampionId,
+            ChampionLevel = d.ChampionLevel,
+            ChampionPoints = d.ChampionPoints,
         }).ToList();
     }
 

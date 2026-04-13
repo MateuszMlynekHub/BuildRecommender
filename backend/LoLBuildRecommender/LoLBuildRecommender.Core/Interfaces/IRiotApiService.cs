@@ -28,7 +28,8 @@ public interface IRiotApiService
         string platform,
         int count,
         DateTimeOffset? startTime = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        int start = 0);
 
     /// <summary>Returns final itemization + winner for each participant in a match.</summary>
     Task<MatchDetails?> GetMatchDetailsAsync(string matchId, string platform, CancellationToken ct = default);
@@ -38,6 +39,9 @@ public interface IRiotApiService
 
     /// <summary>Get ranked league entries (Solo/Duo, Flex) for a summoner.</summary>
     Task<List<RankedEntry>> GetLeagueEntriesAsync(string summonerId, string platform, CancellationToken ct = default);
+
+    /// <summary>Get champion masteries for a player (sorted by points descending).</summary>
+    Task<List<ChampionMastery>> GetChampionMasteriesAsync(string puuid, string platform, int? count = null, CancellationToken ct = default);
 
     /// <summary>
     /// Extracts key events from match timeline in a single API call:

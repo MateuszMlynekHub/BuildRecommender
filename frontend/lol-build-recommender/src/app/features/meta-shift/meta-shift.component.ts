@@ -4,13 +4,12 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { GameStateService } from '../../core/services/game-state.service';
 import { SeoService } from '../../core/services/seo.service';
-import { MetaShiftEntry } from '../../core/models/champion-detail.model';
-import { TPipe } from '../../shared/pipes/t.pipe';
+import { MetaShiftEntry, PatchTrend } from '../../core/models/champion-detail.model';
 
 @Component({
   selector: 'app-meta-shift',
   standalone: true,
-  imports: [RouterLink, TPipe],
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="ms-page">
@@ -34,6 +33,17 @@ import { TPipe } from '../../shared/pipes/t.pipe';
                       [alt]="e.championKey" width="28" height="28" loading="lazy" />
                     {{ e.championKey }}
                   </span>
+                  <span class="ms-col ms-col--spark">
+                    @if (getTrendKey(e.championId, e.role); as key) {
+                      @if (trendCache().get(key); as pts) {
+                        <svg viewBox="0 0 60 20" class="ms-spark" preserveAspectRatio="none">
+                          <polyline [attr.points]="sparklinePath(pts)" fill="none"
+                            [attr.stroke]="e.winRateDelta >= 0 ? '#50E3C2' : '#E84057'" stroke-width="1.5"
+                            stroke-linejoin="round" stroke-linecap="round" />
+                        </svg>
+                      }
+                    }
+                  </span>
                   <span class="ms-col ms-col--role">{{ e.role }}</span>
                   <span class="ms-col ms-col--wr">{{ (e.currentWinRate * 100).toFixed(1) }}%</span>
                   <span class="ms-col ms-col--delta ms-delta--up">+{{ (e.winRateDelta * 100).toFixed(1) }}%</span>
@@ -55,6 +65,17 @@ import { TPipe } from '../../shared/pipes/t.pipe';
                       [src]="gameState.getChampionImageUrl(e.championKey + '.png')"
                       [alt]="e.championKey" width="28" height="28" loading="lazy" />
                     {{ e.championKey }}
+                  </span>
+                  <span class="ms-col ms-col--spark">
+                    @if (getTrendKey(e.championId, e.role); as key) {
+                      @if (trendCache().get(key); as pts) {
+                        <svg viewBox="0 0 60 20" class="ms-spark" preserveAspectRatio="none">
+                          <polyline [attr.points]="sparklinePath(pts)" fill="none"
+                            [attr.stroke]="e.winRateDelta >= 0 ? '#50E3C2' : '#E84057'" stroke-width="1.5"
+                            stroke-linejoin="round" stroke-linecap="round" />
+                        </svg>
+                      }
+                    }
                   </span>
                   <span class="ms-col ms-col--role">{{ e.role }}</span>
                   <span class="ms-col ms-col--wr">{{ (e.currentWinRate * 100).toFixed(1) }}%</span>
@@ -103,6 +124,9 @@ import { TPipe } from '../../shared/pipes/t.pipe';
     .ms-col--delta { width: 60px; text-align: right; font-weight: 700; font-size: 0.82rem; }
     .ms-col--games { width: 45px; text-align: right; color: var(--lol-text-muted); font-size: 0.68rem; }
 
+    .ms-col--spark { width: 60px; height: 20px; flex-shrink: 0; }
+    .ms-spark { width: 60px; height: 20px; display: block; }
+
     .ms-delta--up { color: #50E3C2; }
     .ms-delta--down { color: #E84057; }
 
@@ -123,6 +147,9 @@ export class MetaShiftComponent implements OnInit {
   readonly winners = signal<MetaShiftEntry[]>([]);
   readonly losers = signal<MetaShiftEntry[]>([]);
 
+  /** Map of "championId:role" → PatchTrend[] for sparkline rendering. */
+  readonly trendCache = signal<Map<string, PatchTrend[]>>(new Map());
+
   ngOnInit(): void {
     this.seo.updatePageMeta({
       title: 'Meta Shift — LoL Patch Win Rate Changes | DraftSense',
@@ -135,13 +162,47 @@ export class MetaShiftComponent implements OnInit {
     this.api.getMetaShift().subscribe({
       next: (data) => {
         this.entries.set(data);
-        this.winners.set(
-          data.filter(e => e.winRateDelta > 0).sort((a, b) => b.winRateDelta - a.winRateDelta).slice(0, 15)
-        );
-        this.losers.set(
-          data.filter(e => e.winRateDelta < 0).sort((a, b) => a.winRateDelta - b.winRateDelta).slice(0, 15)
-        );
+        const w = data.filter(e => e.winRateDelta > 0).sort((a, b) => b.winRateDelta - a.winRateDelta).slice(0, 15);
+        const l = data.filter(e => e.winRateDelta < 0).sort((a, b) => a.winRateDelta - b.winRateDelta).slice(0, 15);
+        this.winners.set(w);
+        this.losers.set(l);
+
+        // Fetch patch trends for each displayed champion (deduplicated by champion ID)
+        const seen = new Set<number>();
+        for (const e of [...w, ...l]) {
+          if (seen.has(e.championId)) continue;
+          seen.add(e.championId);
+          this.api.getPatchTrends(e.championId, e.role).subscribe({
+            next: (trends) => {
+              if (trends.length >= 2) {
+                const cache = new Map(this.trendCache());
+                cache.set(`${e.championId}:${e.role}`, trends);
+                this.trendCache.set(cache);
+              }
+            },
+          });
+        }
       },
     });
+  }
+
+  getTrendKey(championId: number, role: string): string {
+    return `${championId}:${role}`;
+  }
+
+  sparklinePath(trends: PatchTrend[]): string {
+    if (trends.length < 2) return '';
+    const wrs = trends.map(t => t.winRate);
+    const min = Math.min(...wrs);
+    const max = Math.max(...wrs);
+    const range = max - min || 0.01;
+    const w = 60;
+    const h = 20;
+    const pad = 2;
+    return trends.map((t, i) => {
+      const x = pad + (i / (trends.length - 1)) * (w - 2 * pad);
+      const y = pad + (1 - (t.winRate - min) / range) * (h - 2 * pad);
+      return `${x},${y}`;
+    }).join(' ');
   }
 }

@@ -110,6 +110,14 @@ public record RankedEntry
     public int Losses { get; init; }
 }
 
+/// <summary>Champion mastery entry for a player.</summary>
+public record ChampionMastery
+{
+    public int ChampionId { get; init; }
+    public int ChampionLevel { get; init; }
+    public int ChampionPoints { get; init; }
+}
+
 /// <summary>
 /// Extracted events from a match timeline — one API call, multiple data points.
 /// </summary>

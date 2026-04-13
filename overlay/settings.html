@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DraftSense Overlay - Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0f19; color: #c8aa6e; padding: 20px;
+    }
+    h1 { font-size: 18px; margin-bottom: 16px; }
+    .setting {
+      margin-bottom: 12px;
+    }
+    .setting label {
+      display: block; font-size: 12px; color: #7a7a7a;
+      margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .setting input, .setting select {
+      width: 100%; background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(200,170,110,0.3);
+      color: #c8aa6e; padding: 8px 10px; font-size: 13px;
+      border-radius: 3px;
+    }
+    .save-btn {
+      background: linear-gradient(135deg, #c8aa6e, #8a6d3b);
+      color: #0a0a0a; border: none; padding: 10px 24px;
+      font-weight: 700; font-size: 13px; border-radius: 3px;
+      cursor: pointer; margin-top: 16px;
+    }
+    .info {
+      margin-top: 20px; padding: 12px; background: rgba(200,170,110,0.05);
+      border: 1px solid rgba(200,170,110,0.15); border-radius: 4px;
+      font-size: 12px; color: #7a7a7a; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1>DraftSense Overlay Settings</h1>
+
+  <div class="setting">
+    <label>API Server URL</label>
+    <input id="apiUrl" value="http://localhost:5000/api" />
+  </div>
+
+  <div class="setting">
+    <label>Riot Name</label>
+    <input id="riotName" placeholder="Your name" />
+  </div>
+
+  <div class="setting">
+    <label>Riot Tag</label>
+    <input id="riotTag" placeholder="TAG" />
+  </div>
+
+  <div class="setting">
+    <label>Region</label>
+    <select id="region">
+      <option value="euw1">EUW</option>
+      <option value="eun1">EUNE</option>
+      <option value="na1">NA</option>
+      <option value="kr">KR</option>
+      <option value="br1">BR</option>
+      <option value="la1">LAN</option>
+      <option value="la2">LAS</option>
+      <option value="oc1">OCE</option>
+      <option value="tr1">TR</option>
+      <option value="ru">RU</option>
+      <option value="jp1">JP</option>
+    </select>
+  </div>
+
+  <div class="setting">
+    <label>Overlay Hotkey</label>
+    <input id="hotkey" value="F9" />
+  </div>
+
+  <button class="save-btn" onclick="save()">Save Settings</button>
+
+  <div class="info">
+    <strong>How to use:</strong><br>
+    1. Enter your Riot ID and region above<br>
+    2. Start a League of Legends game<br>
+    3. The overlay will automatically detect your game<br>
+    4. Press the hotkey to toggle the overlay visibility<br>
+    5. Build recommendations update based on enemy team composition
+  </div>
+
+  <script>
+    function save() {
+      // Save to localStorage (Electron app can persist)
+      const settings = {
+        apiUrl: document.getElementById('apiUrl').value,
+        riotName: document.getElementById('riotName').value,
+        riotTag: document.getElementById('riotTag').value,
+        region: document.getElementById('region').value,
+        hotkey: document.getElementById('hotkey').value,
+      };
+      localStorage.setItem('draftsense-settings', JSON.stringify(settings));
+      alert('Settings saved!');
+    }
+
+    // Load saved settings
+    try {
+      const saved = JSON.parse(localStorage.getItem('draftsense-settings') || '{}');
+      if (saved.apiUrl) document.getElementById('apiUrl').value = saved.apiUrl;
+      if (saved.riotName) document.getElementById('riotName').value = saved.riotName;
+      if (saved.riotTag) document.getElementById('riotTag').value = saved.riotTag;
+      if (saved.region) document.getElementById('region').value = saved.region;
+      if (saved.hotkey) document.getElementById('hotkey').value = saved.hotkey;
+    } catch {}
+  </script>
+</body>
+</html>

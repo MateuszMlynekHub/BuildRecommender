@@ -79,4 +79,12 @@ public class BuildStatsOptions
     /// incrementally and only fetch matches since the last crawl.
     /// </summary>
     public int BackfillDays { get; set; } = 7;
+
+    /// <summary>
+    /// Fixed date to backfill from (e.g. "2026-01-08" for season start). When set,
+    /// overrides <see cref="BackfillDays"/> on first crawl — the crawler will pull
+    /// all matches from this date forward. Leave null/empty to use BackfillDays.
+    /// Format: ISO 8601 date string (yyyy-MM-dd).
+    /// </summary>
+    public string? BackfillSinceDate { get; set; }
 }

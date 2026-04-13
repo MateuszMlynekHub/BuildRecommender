@@ -166,7 +166,103 @@ body::before {
   background: rgba(200, 155, 60, 0.08);
 }
 
-// Form inputs — LoL client style
+// ============================================================
+// Global form element theming — prevents default browser white
+// backgrounds and blue focus/selection highlights leaking through.
+// ============================================================
+input, select, textarea {
+  background: rgba(1, 10, 19, 0.85) !important;
+  border: 1px solid var(--lol-gold-4) !important;
+  color: var(--lol-gold-1) !important;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  outline: none !important;
+  border-radius: 3px;
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  caret-color: var(--lol-gold-3);
+  &:focus {
+    border-color: var(--lol-gold-3) !important;
+    box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.2) !important;
+  }
+  &:hover:not(:focus) {
+    border-color: var(--lol-gold-3) !important;
+  }
+  &::placeholder {
+    color: var(--lol-text-dim) !important;
+  }
+}
+
+select {
+  cursor: pointer;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-color: rgba(1, 10, 19, 0.92) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23C89B3C'%3E%3Cpath d='M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.6rem center !important;
+  padding-right: 2rem !important;
+  &:active, &:focus {
+    background-color: rgba(1, 10, 19, 0.95) !important;
+  }
+}
+
+// Select option elements (dropdown items) — override native blue highlight
+select option {
+  background-color: #091428 !important;
+  color: var(--lol-gold-1) !important;
+  padding: 0.4rem 0.6rem;
+  &:hover, &:focus, &:active, &:checked {
+    background-color: #1a2a40 !important;
+    color: var(--lol-gold-1) !important;
+  }
+}
+
+// Firefox-specific: override the native blue highlight on options
+select:-moz-focusring {
+  color: transparent !important;
+  text-shadow: 0 0 0 var(--lol-gold-1) !important;
+}
+
+@-moz-document url-prefix() {
+  select option:checked,
+  select option:hover {
+    background: linear-gradient(#1a2a40, #1a2a40) !important;
+    color: var(--lol-gold-1) !important;
+  }
+}
+
+// Textarea specific
+textarea {
+  resize: vertical;
+}
+
+// Text selection highlight
+::selection {
+  background: rgba(200, 155, 60, 0.35) !important;
+  color: var(--lol-gold-1) !important;
+}
+
+// Autofill override — prevent Chrome's blue/white autofill bg
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+select:-webkit-autofill,
+textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #091428 inset !important;
+  -webkit-text-fill-color: var(--lol-gold-1) !important;
+  border-color: var(--lol-gold-4) !important;
+  caret-color: var(--lol-gold-3);
+}
+
+// Focus-visible ring for accessibility (keyboard only)
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--lol-cyan) !important;
+  outline-offset: 1px;
+}
+
+// Form inputs — LoL client style (class-based for explicit use)
 .lol-input {
   width: 100%;
   padding: 0.75rem 1rem;

@@ -256,3 +256,15 @@ public class LeagueEntryFullDto
     [JsonPropertyName("losses")]
     public int Losses { get; set; }
 }
+
+public class ChampionMasteryDto
+{
+    [JsonPropertyName("championId")]
+    public int ChampionId { get; set; }
+
+    [JsonPropertyName("championLevel")]
+    public int ChampionLevel { get; set; }
+
+    [JsonPropertyName("championPoints")]
+    public int ChampionPoints { get; set; }
+}

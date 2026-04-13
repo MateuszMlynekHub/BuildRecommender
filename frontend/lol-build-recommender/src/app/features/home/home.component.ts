@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, inject, signal, OnInit } from '@angular/core';
+import { Component, PLATFORM_ID, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -7,12 +7,13 @@ import { GameStateService } from '../../core/services/game-state.service';
 import { SeoService } from '../../core/services/seo.service';
 import { Region } from '../../core/models/region.model';
 import { TPipe } from '../../shared/pipes/t.pipe';
+import { LolSelectComponent, SelectOption } from '../../shared/components/lol-select.component';
 import { TranslationKey } from '../../core/i18n/translations';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule, TPipe],
+  imports: [CommonModule, FormsModule, TPipe, LolSelectComponent],
   template: `
     <!-- Full-viewport hero with Summoner's Rift splash backdrop -->
     <div class="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-10">
@@ -80,23 +81,12 @@ import { TranslationKey } from '../../core/i18n/translations';
 
           <div class="mb-8">
             <label for="ds-region-select" class="block text-xs font-display uppercase tracking-widest mb-2 text-gold-soft">{{ 'home.form.region' | t }}</label>
-            <div class="relative">
-              <select
-                id="ds-region-select"
-                [(ngModel)]="selectedRegion"
-                [attr.aria-label]="'home.form.region' | t"
-                class="lol-input w-full appearance-none pr-10 cursor-pointer"
-              >
-                @for (region of regions(); track region.id) {
-                  <option [value]="region.id" style="background-color: var(--lol-abyss)">{{ region.name }}</option>
-                }
-              </select>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"
-                   class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                   fill="var(--lol-gold-3)">
-                <path d="M7 10l5 5 5-5z"/>
-              </svg>
-            </div>
+            <app-lol-select
+              [options]="regionOptions()"
+              [value]="selectedRegion"
+              (valueChange)="selectedRegion = $event"
+              [fullWidth]="true"
+            ></app-lol-select>
           </div>
 
           <button
@@ -236,6 +226,9 @@ export class HomeComponent implements OnInit {
   tagLine = '';
   selectedRegion = 'euw1';
   regions = signal<Region[]>([]);
+  regionOptions = computed<SelectOption[]>(() =>
+    this.regions().map(r => ({ value: r.id, label: r.name }))
+  );
   loading = signal(false);
   // Error state holds a translation KEY, not a raw localized string. The
   // template pipes the key through `| t` so switching language flips the

@@ -586,6 +586,7 @@ public class BuildRecommenderService : IBuildRecommenderService
         {
             var buildItems = BuildItemSet(myChampion, threatProfile, items, normalizedRole, allies, style, coreItemNames);
             var earlyComponents = DetectEarlyComponents(buildItems, tearComponent);
+            var phases = BuildPhases(buildItems);
             return new BuildVariant
             {
                 Style = style.ToString().ToLowerInvariant(),
@@ -593,6 +594,7 @@ public class BuildRecommenderService : IBuildRecommenderService
                 DescriptionKey = descriptionKey,
                 Items = buildItems,
                 EarlyComponents = earlyComponents,
+                Phases = phases,
             };
         }
     }
@@ -644,6 +646,52 @@ public class BuildRecommenderService : IBuildRecommenderService
             ReasonArgs = new Dictionary<string, object> { ["item"] = tearFullItem.Name },
         });
         return result;
+    }
+
+    /// <summary>
+    /// Splits the 6-item build into early/mid/late game phases. Boots are excluded from
+    /// phasing since they are purchased opportunistically. Non-boots items are split:
+    /// items 1-2 → early, 3-4 → mid, 5-6 → late.
+    /// </summary>
+    private static List<ItemizationPhase> BuildPhases(List<RecommendedItem> buildItems)
+    {
+        var nonBoots = buildItems
+            .Where(ri => !ri.Item.Classification.IsBoots)
+            .ToList();
+
+        var phases = new List<ItemizationPhase>();
+
+        if (nonBoots.Count > 0)
+        {
+            phases.Add(new ItemizationPhase
+            {
+                Phase = "early",
+                PhaseKey = "phase.early",
+                Items = nonBoots.Take(2).ToList(),
+            });
+        }
+
+        if (nonBoots.Count > 2)
+        {
+            phases.Add(new ItemizationPhase
+            {
+                Phase = "mid",
+                PhaseKey = "phase.mid",
+                Items = nonBoots.Skip(2).Take(2).ToList(),
+            });
+        }
+
+        if (nonBoots.Count > 4)
+        {
+            phases.Add(new ItemizationPhase
+            {
+                Phase = "late",
+                PhaseKey = "phase.late",
+                Items = nonBoots.Skip(4).Take(2).ToList(),
+            });
+        }
+
+        return phases;
     }
 
     private enum BuildStyle { Standard, Aggressive, Defensive }
@@ -1202,43 +1250,126 @@ public class BuildRecommenderService : IBuildRecommenderService
     private static (double score, RecommendationReason? reason) CalculateAllySynergy(
         ItemInfo item, string role, ChampionInfo[] allies)
     {
-        // Ally synergy currently applies only to the support role — the main case is
-        // Ardent Censer / Staff of Flowing Water depending on which ADC you're laning with.
-        if (role != LaneAssigner.Utility || allies is null || allies.Length == 0)
+        if (allies is null || allies.Length == 0)
             return (0, null);
 
         var name = item.Name;
 
-        // Ardent Censer — auto-attack speed aura. Good for AS marksmen, weak for crit/burst carries.
-        if (string.Equals(name, "Ardent Censer", StringComparison.OrdinalIgnoreCase))
+        // --- Support-specific synergies ---
+        if (role == LaneAssigner.Utility)
         {
-            var friendly = allies.FirstOrDefault(a => ArdentFriendlyCarries.Contains(a.Key));
-            if (friendly is not null)
-                return (15, new RecommendationReason
-                {
-                    Key = "reason.synergy.ardentFriendly",
-                    Args = new Dictionary<string, object> { ["ally"] = friendly.Name },
-                });
+            // Ardent Censer — auto-attack speed aura. Good for AS marksmen, weak for crit/burst carries.
+            if (string.Equals(name, "Ardent Censer", StringComparison.OrdinalIgnoreCase))
+            {
+                var friendly = allies.FirstOrDefault(a => ArdentFriendlyCarries.Contains(a.Key));
+                if (friendly is not null)
+                    return (15, new RecommendationReason
+                    {
+                        Key = "reason.synergy.ardentFriendly",
+                        Args = new Dictionary<string, object> { ["ally"] = friendly.Name },
+                    });
 
-            var unfriendly = allies.FirstOrDefault(a => ArdentUnfriendlyCarries.Contains(a.Key));
-            if (unfriendly is not null)
-                return (-25, new RecommendationReason
+                var unfriendly = allies.FirstOrDefault(a => ArdentUnfriendlyCarries.Contains(a.Key));
+                if (unfriendly is not null)
+                    return (-25, new RecommendationReason
+                    {
+                        Key = "reason.synergy.ardentUnfriendly",
+                        Args = new Dictionary<string, object> { ["ally"] = unfriendly.Name },
+                    });
+            }
+
+            // Staff of Flowing Water — on heal/shield grants AP + MS to ally.
+            if (string.Equals(name, "Staff of Flowing Water", StringComparison.OrdinalIgnoreCase))
+            {
+                var unfriendly = allies.FirstOrDefault(a => ArdentUnfriendlyCarries.Contains(a.Key));
+                if (unfriendly is not null && !allies.Any(a => ArdentFriendlyCarries.Contains(a.Key)))
+                    return (-10, new RecommendationReason
+                    {
+                        Key = "reason.synergy.flowingWaterMediocre",
+                        Args = new Dictionary<string, object> { ["ally"] = unfriendly.Name },
+                    });
+            }
+
+            // Zeke's Convergence — great when ally has engage/dive to proc the frostfire zone
+            if (string.Equals(name, "Zeke's Convergence", StringComparison.OrdinalIgnoreCase))
+            {
+                var engager = allies.FirstOrDefault(a => EngageTierOverrides.TryGetValue(a.Key, out var s) && s >= 0.7);
+                if (engager is not null)
+                    return (12, new RecommendationReason
+                    {
+                        Key = "reason.synergy.zekesEngage",
+                        Args = new Dictionary<string, object> { ["ally"] = engager.Name },
+                    });
+            }
+
+            // Knight's Vow — best when paired with a hyper-carry ADC that needs peel
+            if (string.Equals(name, "Knight's Vow", StringComparison.OrdinalIgnoreCase))
+            {
+                var hyperCarry = allies.FirstOrDefault(a =>
+                    a.Tags.Contains("Marksman") && a.AttributeRatings.Damage >= 3);
+                if (hyperCarry is not null)
+                    return (10, new RecommendationReason
+                    {
+                        Key = "reason.synergy.knightsVowCarry",
+                        Args = new Dictionary<string, object> { ["ally"] = hyperCarry.Name },
+                    });
+            }
+        }
+
+        // --- Universal synergies (all roles) ---
+
+        // Mixed damage bonus: if your team is heavily one damage type, items that provide
+        // the OTHER type become more valuable (enemies can't stack one resist type).
+        int allyAdCount = 0, allyApCount = 0;
+        foreach (var ally in allies)
+        {
+            if (ally.AdaptiveType.Contains("PHYSICAL", StringComparison.OrdinalIgnoreCase)) allyAdCount++;
+            else if (ally.AdaptiveType.Contains("MAGIC", StringComparison.OrdinalIgnoreCase)) allyApCount++;
+        }
+
+        // Team is 3+ AD allies and I'm buying AP — mixed damage bonus
+        if (allyAdCount >= 3 && item.Stats.AbilityPower > 0 && item.Stats.AbilityPower >= 60)
+            return (8, new RecommendationReason
+            {
+                Key = "reason.synergy.mixedDamageAp",
+                Args = new Dictionary<string, object> { ["adCount"] = allyAdCount },
+            });
+
+        // Team is 3+ AP allies and I'm buying AD — mixed damage bonus
+        if (allyApCount >= 3 && item.Stats.AttackDamage > 0 && item.Stats.AttackDamage >= 30)
+            return (8, new RecommendationReason
+            {
+                Key = "reason.synergy.mixedDamageAd",
+                Args = new Dictionary<string, object> { ["apCount"] = allyApCount },
+            });
+
+        // Ally has heavy CC → on-hit/DPS items gain value (more time to auto-attack while enemies are CC'd)
+        var highCcAlly = allies.FirstOrDefault(a => a.CcScore >= 0.6);
+        if (highCcAlly is not null && role != LaneAssigner.Utility)
+        {
+            if (item.Stats.AttackSpeed > 0 && item.Stats.AttackDamage > 0)
+                return (6, new RecommendationReason
                 {
-                    Key = "reason.synergy.ardentUnfriendly",
-                    Args = new Dictionary<string, object> { ["ally"] = unfriendly.Name },
+                    Key = "reason.synergy.dpsWithCc",
+                    Args = new Dictionary<string, object> { ["ally"] = highCcAlly.Name },
                 });
         }
 
-        // Staff of Flowing Water — on heal/shield grants AP + MS to ally. Benefits most
-        // carries but really shines with AP/on-hit carries like Kai'Sa.
-        if (string.Equals(name, "Staff of Flowing Water", StringComparison.OrdinalIgnoreCase))
+        // Ally has strong engage → AoE damage items become more valuable (follow-up)
+        var engageAlly = allies.FirstOrDefault(a => EngageTierOverrides.TryGetValue(a.Key, out var s) && s >= 0.8);
+        if (engageAlly is not null && role != LaneAssigner.Utility)
         {
-            var unfriendly = allies.FirstOrDefault(a => ArdentUnfriendlyCarries.Contains(a.Key));
-            if (unfriendly is not null && !allies.Any(a => ArdentFriendlyCarries.Contains(a.Key)))
-                return (-10, new RecommendationReason
+            // Items with AoE damage effects benefit from enemy team being grouped by engage
+            var isAoeItem = string.Equals(name, "Rabadon's Deathcap", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "Liandry's Torment", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "Sunfire Aegis", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "Hollow Radiance", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "Runaan's Hurricane", StringComparison.OrdinalIgnoreCase);
+            if (isAoeItem)
+                return (7, new RecommendationReason
                 {
-                    Key = "reason.synergy.flowingWaterMediocre",
-                    Args = new Dictionary<string, object> { ["ally"] = unfriendly.Name },
+                    Key = "reason.synergy.aoeWithEngage",
+                    Args = new Dictionary<string, object> { ["ally"] = engageAlly.Name },
                 });
         }
 
@@ -1815,5 +1946,114 @@ public class BuildRecommenderService : IBuildRecommenderService
         }
 
         return score;
+    }
+
+    // ========================================================================
+    // Gold-efficient item advisor
+    // ========================================================================
+
+    // Reference gold values per stat point (based on base components):
+    //   Long Sword = 350g for 10 AD  → 35g/AD
+    //   Amp Tome   = 435g for 20 AP  → 21.75g/AP
+    //   Cloth Armor = 300g for 15 Armor → 20g/Armor
+    //   Null-Magic = 450g for 25 MR → 18g/MR
+    //   Ruby Crystal = 400g for 150 HP → 2.67g/HP
+    //   Sapphire Crystal = 350g for 250 Mana → 1.4g/Mana
+    //   Dagger = 300g for 12% AS → 25g/%AS
+    //   Cloak of Agility = 600g for 15% Crit → 40g/%Crit
+    //   AH ≈ 26.67g/point (derived from Kindlegem/Fiendish Codex)
+    private static double ComputeGoldValue(ItemStats stats)
+    {
+        double value = 0;
+        value += stats.AttackDamage * 35.0;
+        value += stats.AbilityPower * 21.75;
+        value += stats.Armor * 20.0;
+        value += stats.MagicResist * 18.0;
+        value += stats.Health * 2.67;
+        value += stats.Mana * 1.4;
+        value += stats.AttackSpeed * 25.0;
+        value += stats.CritChance * 40.0;
+        value += stats.AbilityHaste * 26.67;
+        value += stats.Lethality * 5.0;     // Serrated Dirk pricing
+        value += stats.LifeSteal * 37.5;    // Vampiric Scepter pricing
+        value += stats.MoveSpeed * 12.0;
+        return value;
+    }
+
+    public async Task<GoldRecommendation> GetGoldEfficientItemsAsync(
+        int gold, int? championId = null, string? role = null)
+    {
+        var allItems = await _gameData.GetAllItemsAsync();
+
+        // Collect recommended build item IDs (and their components) when champion context is given.
+        var recommendedItemIds = new HashSet<int>();
+        if (championId is > 0)
+        {
+            try
+            {
+                // Use an empty enemy list — we just want the standard build's item IDs.
+                var rec = await RecommendBuildAsync(championId.Value, [], [], role);
+                foreach (var variant in rec.Variants)
+                {
+                    foreach (var ri in variant.Items)
+                    {
+                        recommendedItemIds.Add(ri.Item.Id);
+                        // Add sub-components too.
+                        foreach (var compId in ri.Item.BuildsFrom)
+                            recommendedItemIds.Add(compId);
+                    }
+                }
+            }
+            catch
+            {
+                // If recommendation fails (unknown champion, etc.) just skip the context.
+            }
+        }
+
+        var candidates = new List<GoldEfficientItem>();
+
+        foreach (var (id, item) in allItems)
+        {
+            // Skip items the player can't afford.
+            if (item.Gold.Total > gold || item.Gold.Total <= 0 || !item.Gold.Purchasable)
+                continue;
+
+            // Skip non-Summoner's-Rift items.
+            if (!item.IsAvailableOnSummonersRift)
+                continue;
+
+            // Skip champion-specific items (Viktor Hex Core, Ornn upgrades, etc.)
+            if (item.RequiredChampion is not null && item.RequiredChampion != string.Empty)
+                continue;
+
+            var goldValue = ComputeGoldValue(item.Stats);
+            if (goldValue <= 0)
+                continue; // No useful stats (potions, wards, etc.)
+
+            var efficiency = goldValue / item.Gold.Total;
+            var isComponent = recommendedItemIds.Contains(id);
+
+            candidates.Add(new GoldEfficientItem
+            {
+                Item = item,
+                Efficiency = Math.Round(efficiency, 3),
+                IsRecommendedComponent = isComponent,
+            });
+        }
+
+        // Sort: recommended components first (by efficiency), then general items by efficiency.
+        var sorted = candidates
+            .OrderByDescending(c => c.IsRecommendedComponent)
+            .ThenByDescending(c => c.Efficiency)
+            .Take(15)
+            .ToList();
+
+        return new GoldRecommendation
+        {
+            Gold = gold,
+            ChampionId = championId,
+            Role = role,
+            Items = sorted,
+        };
     }
 }

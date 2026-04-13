@@ -6,7 +6,6 @@ import { GameStateService } from '../../core/services/game-state.service';
 import { SeoService } from '../../core/services/seo.service';
 import { TierListEntry } from '../../core/models/champion-detail.model';
 import { LaneRole, LANE_ORDER } from '../../core/models/champion.model';
-import { TPipe } from '../../shared/pipes/t.pipe';
 
 type SortKey = 'winRate' | 'picks' | 'name';
 type Tier = 'S' | 'A' | 'B' | 'C' | 'D';
@@ -23,7 +22,7 @@ function assignTier(wr: number, avgWr: number): Tier {
 @Component({
   selector: 'app-tier-list',
   standalone: true,
-  imports: [RouterLink, TPipe],
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tl-page">

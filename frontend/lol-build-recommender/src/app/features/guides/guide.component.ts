@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SeoService } from '../../core/services/seo.service';
-import { TPipe } from '../../shared/pipes/t.pipe';
 
 interface Guide {
   slug: string;
@@ -55,7 +54,7 @@ const GUIDES: Guide[] = [
 @Component({
   selector: 'app-guide',
   standalone: true,
-  imports: [RouterLink, TPipe],
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="guide-page">
